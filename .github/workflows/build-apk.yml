@@ -2,9 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 permissions:
@@ -25,15 +25,14 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Prepare Environment and Keystore
+      - name: Prepare Keystore and Environment
         run: |
-          # 1. Provide .env for Secrets Gradle Plugin
+          chmod +x gradlew
+
+          # Prepare .env for Secrets Gradle plugin
           if [ ! -f .env ]; then
             if [ -f .env.example ]; then
               cp .env.example .env
@@ -42,10 +41,10 @@ jobs:
             fi
           fi
 
-          # 2. Restore debug.keystore from base64 or generate fallback
+          # Restore debug.keystore from base64 if needed
           if [ ! -f debug.keystore ]; then
             if [ -f debug.keystore.base64 ]; then
-              echo "Restoring debug.keystore from debug.keystore.base64..."
+              echo "Restoring debug.keystore from base64..."
               base64 -d debug.keystore.base64 > debug.keystore
             else
               echo "Generating fallback debug.keystore..."
@@ -60,11 +59,8 @@ jobs:
             fi
           fi
 
-          # 3. Ensure gradlew has execute permission
-          chmod +x gradlew
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
