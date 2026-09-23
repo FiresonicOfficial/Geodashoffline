@@ -38,9 +38,29 @@ class LevelEditorState(initialLevel: Level? = null) {
     var selectedType by mutableStateOf(ObjectType.BLOCK)
     var activeTool by mutableStateOf(EditorTool.PLACE)
 
-    // Viewport scrolling
+    // Viewport scrolling & zooming
     var scrollX by mutableFloatStateOf(0f)
+    var zoomScale by mutableFloatStateOf(1.0f)
     var snapIncrement by mutableFloatStateOf(0.5f)
+
+    val maxObjectX: Float get() = objects.maxOfOrNull { it.x } ?: 0f
+    val levelEstimatedLength: Float get() = (maxObjectX + 20f).coerceAtLeast(60f)
+
+    fun zoomIn() {
+        zoomScale = (zoomScale + 0.15f).coerceAtMost(1.75f)
+    }
+
+    fun zoomOut() {
+        zoomScale = (zoomScale - 0.15f).coerceAtLeast(0.65f)
+    }
+
+    fun jumpToStart() {
+        scrollX = 0f
+    }
+
+    fun jumpToEnd() {
+        scrollX = (maxObjectX - 6f).coerceAtLeast(0f)
+    }
 
     // Undo / Redo history
     private val undoStack = mutableListOf<List<GameObject>>()

@@ -1,12 +1,16 @@
 package com.example.ui
 
 import android.widget.Toast
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -22,17 +26,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.FirstPage
+import androidx.compose.material.icons.filled.LastPage
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -40,23 +48,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -74,7 +80,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.editor.EditorTool
 import com.example.editor.LevelEditorState
+import com.example.game.GameRenderer
 import com.example.model.Difficulty
+import com.example.model.GameObject
 import com.example.model.Level
 import com.example.model.ObjectCategory
 import com.example.model.ObjectType
@@ -90,21 +98,47 @@ fun EditorScreen(
     val context = LocalContext.current
     var showSettingsDialog by remember { mutableStateOf(false) }
 
+    // Live continuous saw animation rotation
+    val infiniteTransition = rememberInfiniteTransition(label = "saw_anim")
+    val editorSawAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing)
+        ),
+        label = "saw_angle"
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = editorState.levelName,
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(editorState.difficulty.colorHex).copy(alpha = 0.25f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = editorState.difficulty.displayName.uppercase(),
+                                    color = Color(editorState.difficulty.colorHex),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
                         Text(
-                            text = editorState.levelName,
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "${editorState.objects.size} objects  •  X: ${String.format("%.1f", editorState.scrollX)}",
-                            color = Color.Gray,
+                            text = "${editorState.objects.size} objects • X: ${String.format("%.1f", editorState.scrollX)}m • Zoom: ${(editorState.zoomScale * 100).toInt()}%",
+                            color = Color(0xFF00E5FF),
                             fontSize = 11.sp
                         )
                     }
@@ -158,7 +192,7 @@ fun EditorScreen(
                         onClick = {
                             val lvl = editorState.buildLevel()
                             onSaveLevel(lvl)
-                            Toast.makeText(context, "Level '${lvl.name}' saved!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Saved '${lvl.name}' (${lvl.objects.size} objects)", Toast.LENGTH_SHORT).show()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
                         shape = RoundedCornerShape(8.dp),
@@ -185,19 +219,21 @@ fun EditorScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .background(Color(editorState.bgColor))
-                    .pointerInput(editorState.activeTool, editorState.selectedType) {
+                    .pointerInput(editorState.activeTool, editorState.selectedType, editorState.zoomScale) {
                         detectTapGestures { offset ->
-                            val tileSize = size.height / 10f
-                            val groundY = size.height - (tileSize * 1.5f)
+                            val baseTileSize = size.height / 10f
+                            val tileSize = baseTileSize * editorState.zoomScale
+                            val groundY = size.height - (baseTileSize * 1.6f)
                             val gridX = editorState.scrollX + (offset.x / tileSize)
                             val gridY = (groundY - offset.y) / tileSize
                             editorState.onGridTapped(gridX, gridY)
                         }
                     }
-                    .pointerInput(Unit) {
+                    .pointerInput(editorState.zoomScale) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
-                            val tileSize = size.height / 10f
+                            val baseTileSize = size.height / 10f
+                            val tileSize = baseTileSize * editorState.zoomScale
                             val deltaGrid = -dragAmount.x / tileSize
                             editorState.scrollX = (editorState.scrollX + deltaGrid).coerceAtLeast(0f)
                         }
@@ -206,12 +242,28 @@ fun EditorScreen(
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val w = size.width
                     val h = size.height
-                    val tileSize = h / 10f
-                    val groundScreenY = h - (tileSize * 1.5f)
+                    val baseTileSize = h / 10f
+                    val tileSize = baseTileSize * editorState.zoomScale
+                    val groundScreenY = h - (baseTileSize * 1.6f)
+
+                    // Draw Background subtle horizon glow
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(editorState.groundColor).copy(alpha = 0.25f)),
+                            startY = groundScreenY - tileSize * 4f,
+                            endY = groundScreenY
+                        ),
+                        topLeft = Offset(0f, groundScreenY - tileSize * 4f),
+                        size = Size(w, tileSize * 4f)
+                    )
 
                     // Draw Ground
                     drawRect(
-                        color = Color(editorState.groundColor),
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(editorState.groundColor), Color.Black),
+                            startY = groundScreenY,
+                            endY = h
+                        ),
                         topLeft = Offset(0f, groundScreenY),
                         size = Size(w, h - groundScreenY)
                     )
@@ -219,71 +271,76 @@ fun EditorScreen(
                         color = Color(0xFF00E5FF),
                         start = Offset(0f, groundScreenY),
                         end = Offset(w, groundScreenY),
-                        strokeWidth = 3f
+                        strokeWidth = 3.5f
                     )
 
-                    // Draw Grid lines
+                    // Draw Grid lines with Beat / Mile markers
                     val scrollOffset = (editorState.scrollX * tileSize) % tileSize
-                    val gridColor = Color.White.copy(alpha = 0.08f)
+                    val gridColor = Color.White.copy(alpha = 0.09f)
+                    val beatGridColor = Color(0xFF00E5FF).copy(alpha = 0.22f)
+
                     var cx = -scrollOffset
-                    var gridIndex = (editorState.scrollX - (editorState.scrollX % 1f)).toInt()
+                    var curGridUnit = (editorState.scrollX - (editorState.scrollX % 1f)).toInt()
                     while (cx < w) {
+                        val isBeat = (curGridUnit % 4) == 0
+                        val isMajorMile = (curGridUnit % 10) == 0
+
                         drawLine(
-                            color = gridColor,
+                            color = if (isMajorMile) Color(0xFFFFD600).copy(alpha = 0.35f) else if (isBeat) beatGridColor else gridColor,
                             start = Offset(cx, 0f),
                             end = Offset(cx, groundScreenY),
-                            strokeWidth = 1f
+                            strokeWidth = if (isMajorMile) 2f else if (isBeat) 1.5f else 1f
                         )
                         cx += tileSize
+                        curGridUnit++
                     }
 
-                    for (yStep in 0..8) {
+                    // Horizontal Grid lines
+                    for (yStep in 0..10) {
                         val sy = groundScreenY - (yStep * tileSize)
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(0f, sy),
-                            end = Offset(w, sy),
-                            strokeWidth = 1f
-                        )
-                    }
-
-                    // Render placed objects
-                    for (obj in editorState.objects) {
-                        val screenX = (obj.x - editorState.scrollX) * tileSize
-                        val screenY = groundScreenY - ((obj.y + obj.type.height) * tileSize)
-                        val objW = obj.type.width * tileSize
-                        val objH = obj.type.height * tileSize
-
-                        if (screenX + objW >= 0 && screenX <= w) {
-                            val color = Color(obj.type.primaryColorHex)
-                            drawRect(
-                                color = color.copy(alpha = 0.85f),
-                                topLeft = Offset(screenX, screenY),
-                                size = Size(objW, objH)
-                            )
-                            drawRect(
-                                color = Color.White,
-                                topLeft = Offset(screenX, screenY),
-                                size = Size(objW, objH),
-                                style = Stroke(width = 1.5f)
+                        if (sy >= 0) {
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, sy),
+                                end = Offset(w, sy),
+                                strokeWidth = 1f
                             )
                         }
                     }
+
+                    // Render placed objects with authentic GameRenderer engine
+                    val minX = editorState.scrollX - 2f
+                    val maxX = editorState.scrollX + (w / tileSize) + 2f
+
+                    for (obj in editorState.objects) {
+                        if (obj.x + obj.type.width < minX || obj.x > maxX) continue
+                        GameRenderer.drawGameObject(
+                            scope = this,
+                            obj = obj,
+                            cameraX = editorState.scrollX,
+                            groundScreenY = groundScreenY,
+                            tileSize = tileSize,
+                            sawAngle = editorSawAngle
+                        )
+                    }
                 }
 
-                // Quick Tool Floater (Draw / Erase)
+                // Quick Tool HUD: Place / Erase / Zoom / Nav
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(12.dp)
-                        .background(Color(0xFF161B22).copy(alpha = 0.9f), RoundedCornerShape(12.dp))
+                        .background(Color(0xFF161B22).copy(alpha = 0.92f), RoundedCornerShape(12.dp))
+                        .border(BorderStroke(1.dp, Color(0xFF30363D)), RoundedCornerShape(12.dp))
                         .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Tool: Place
                     IconButton(
                         onClick = { editorState.activeTool = EditorTool.PLACE },
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .background(
                                 if (editorState.activeTool == EditorTool.PLACE) Color(0xFF00E5FF) else Color.Transparent,
                                 RoundedCornerShape(8.dp)
@@ -291,24 +348,94 @@ fun EditorScreen(
                     ) {
                         Icon(
                             Icons.Default.Edit,
-                            contentDescription = "Place",
+                            contentDescription = "Place Mode",
                             tint = if (editorState.activeTool == EditorTool.PLACE) Color.Black else Color.White
                         )
                     }
+
+                    // Tool: Erase
                     IconButton(
                         onClick = { editorState.activeTool = EditorTool.ERASE },
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .background(
-                                if (editorState.activeTool == EditorTool.ERASE) Color.Red else Color.Transparent,
+                                if (editorState.activeTool == EditorTool.ERASE) Color(0xFFFF1744) else Color.Transparent,
                                 RoundedCornerShape(8.dp)
                             )
                     ) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Erase",
+                            contentDescription = "Erase Mode",
                             tint = if (editorState.activeTool == EditorTool.ERASE) Color.White else Color.Gray
                         )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Jump to Start
+                    IconButton(
+                        onClick = { editorState.jumpToStart() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.FirstPage, contentDescription = "Jump to Start", tint = Color.LightGray)
+                    }
+
+                    // Jump to End
+                    IconButton(
+                        onClick = { editorState.jumpToEnd() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.LastPage, contentDescription = "Jump to End", tint = Color.LightGray)
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Zoom Out
+                    IconButton(
+                        onClick = { editorState.zoomOut() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "Zoom Out", tint = Color.LightGray)
+                    }
+
+                    // Zoom In
+                    IconButton(
+                        onClick = { editorState.zoomIn() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = Color.LightGray)
+                    }
+                }
+
+                // Snap increment selector badge (Bottom Left of Canvas)
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(12.dp)
+                        .background(Color(0xFF161B22).copy(alpha = 0.85f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("SNAP:", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    listOf(0.25f, 0.5f, 1.0f).forEach { snapVal ->
+                        val isSel = editorState.snapIncrement == snapVal
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (isSel) Color(0xFF00E5FF) else Color(0xFF21262D),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .clickable { editorState.snapIncrement = snapVal }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${snapVal}x",
+                                color = if (isSel) Color.Black else Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -318,20 +445,20 @@ fun EditorScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF161B22))
-                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                    .padding(horizontal = 14.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "TIMELINE:",
+                    text = "PROGRESS:",
                     color = Color.LightGray,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Slider(
-                    value = editorState.scrollX.coerceIn(0f, 150f),
+                    value = editorState.scrollX.coerceIn(0f, editorState.levelEstimatedLength),
                     onValueChange = { editorState.scrollX = it },
-                    valueRange = 0f..150f,
+                    valueRange = 0f..editorState.levelEstimatedLength,
                     colors = SliderDefaults.colors(
                         thumbColor = Color(0xFF00E5FF),
                         activeTrackColor = Color(0xFF00E5FF)
@@ -340,14 +467,14 @@ fun EditorScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${editorState.scrollX.toInt()}m",
+                    text = "${editorState.scrollX.toInt()}m / ${editorState.levelEstimatedLength.toInt()}m",
                     color = Color(0xFF00E5FF),
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            // Bottom Palette Tray
+            // Bottom Object Palette Tray
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -361,59 +488,91 @@ fun EditorScreen(
                     edgePadding = 8.dp
                 ) {
                     ObjectCategory.values().forEach { cat ->
+                        val isSelected = editorState.selectedCategory == cat
+                        val iconLabel = when (cat) {
+                            ObjectCategory.BLOCKS -> "🧱 Blocks"
+                            ObjectCategory.HAZARDS -> "⚠️ Hazards"
+                            ObjectCategory.PADS -> "🚀 Pads"
+                            ObjectCategory.ORBS -> "🔮 Orbs"
+                            ObjectCategory.PORTALS -> "🌀 Portals"
+                            ObjectCategory.SPECIAL -> "⭐ Special"
+                        }
                         Tab(
-                            selected = editorState.selectedCategory == cat,
+                            selected = isSelected,
                             onClick = {
                                 editorState.selectedCategory = cat
                                 editorState.selectedType = ObjectType.values().first { it.category == cat }
                             },
                             text = {
                                 Text(
-                                    text = cat.displayName,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (editorState.selectedCategory == cat) FontWeight.Bold else FontWeight.Normal
+                                    text = iconLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
                         )
                     }
                 }
 
-                // Available Objects in selected category
+                // Available Objects in selected category - Visual Card Preview Grid
                 val currentCategoryObjects = ObjectType.values().filter { it.category == editorState.selectedCategory }
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     items(currentCategoryObjects) { type ->
                         val isSelected = editorState.selectedType == type
-                        FilterChip(
-                            selected = isSelected,
+                        Card(
                             onClick = {
                                 editorState.selectedType = type
                                 editorState.activeTool = EditorTool.PLACE
                             },
-                            label = {
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) Color(0xFF21262D) else Color(0xFF161B22)
+                            ),
+                            border = BorderStroke(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = if (isSelected) Color(0xFF00E5FF) else Color(0xFF30363D)
+                            ),
+                            modifier = Modifier
+                                .width(68.dp)
+                                .height(64.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // Mini live Canvas representation of the object
+                                Canvas(modifier = Modifier.size(32.dp)) {
+                                    val dummyObj = GameObject(0f, 0f, type)
+                                    val scale = size.height / (type.height.coerceAtLeast(type.width) * 1.25f)
+                                    val groundOffset = size.height * 0.95f
+                                    GameRenderer.drawGameObject(
+                                        scope = this,
+                                        obj = dummyObj,
+                                        cameraX = 0f,
+                                        groundScreenY = groundOffset,
+                                        tileSize = scale,
+                                        sawAngle = editorSawAngle
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(3.dp))
                                 Text(
-                                    text = type.displayName,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    text = type.displayName.take(8),
+                                    fontSize = 9.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color.White else Color.LightGray,
+                                    maxLines = 1
                                 )
-                            },
-                            leadingIcon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .background(Color(type.primaryColorHex), CircleShape)
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(type.primaryColorHex).copy(alpha = 0.25f),
-                                selectedLabelColor = Color.White
-                            )
-                        )
+                            }
+                        }
                     }
                 }
             }
@@ -426,7 +585,7 @@ fun EditorScreen(
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF00E5FF)),
+                border = BorderStroke(1.5.dp, Color(0xFF00E5FF)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
@@ -450,6 +609,10 @@ fun EditorScreen(
                         value = editorState.levelName,
                         onValueChange = { editorState.levelName = it },
                         label = { Text("Level Name") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color.DarkGray
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -459,34 +622,40 @@ fun EditorScreen(
                         value = editorState.levelDescription,
                         onValueChange = { editorState.levelDescription = it },
                         label = { Text("Description") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color.DarkGray
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Music selection
-                    Text("Soundtrack:", color = Color.LightGray, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Soundtrack:", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
                     val songNames = listOf("Stereo Track", "Cyber Beat", "Dark Demon", "Neon Pulse")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         songNames.forEachIndexed { idx, name ->
                             val isSel = editorState.musicTrack == idx
                             Box(
                                 modifier = Modifier
+                                    .weight(1f)
                                     .background(
                                         if (isSel) Color(0xFF00E5FF) else Color(0xFF21262D),
                                         RoundedCornerShape(8.dp)
                                     )
                                     .clickable { editorState.musicTrack = idx }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = name.take(7),
+                                    text = name.take(6),
                                     color = if (isSel) Color.Black else Color.White,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -495,17 +664,56 @@ fun EditorScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Target Difficulty
-                    Text("Target Difficulty:", color = Color.LightGray, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Background Color Palettes
+                    Text("Background Color:", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val bgColors = listOf(
+                        0xFF0D1117L to "Midnight",
+                        0xFF1A0A2AL to "Abyss",
+                        0xFF2A0808L to "Demon",
+                        0xFF051821L to "Cyan",
+                        0xFF121212L to "Charcoal"
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        bgColors.forEach { (c, name) ->
+                            val isSel = editorState.bgColor == c
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp)
+                                    .background(Color(c), RoundedCornerShape(6.dp))
+                                    .border(
+                                        BorderStroke(
+                                            if (isSel) 2.5.dp else 1.dp,
+                                            if (isSel) Color(0xFF00E5FF) else Color.DarkGray
+                                        ),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .clickable { editorState.bgColor = c },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(name.take(3), color = Color.White, fontSize = 9.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Target Difficulty
+                    Text("Target Difficulty:", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         listOf(Difficulty.EASY, Difficulty.NORMAL, Difficulty.HARD, Difficulty.HARDER, Difficulty.INSANE, Difficulty.DEMON).forEach { d ->
                             val isSel = editorState.difficulty == d
                             Box(
                                 modifier = Modifier
+                                    .weight(1f)
                                     .background(
                                         if (isSel) Color(d.colorHex) else Color(0xFF21262D),
                                         RoundedCornerShape(6.dp)
@@ -514,12 +722,13 @@ fun EditorScreen(
                                         editorState.difficulty = d
                                         editorState.stars = d.defaultStars
                                     }
-                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = d.displayName.take(3),
                                     color = if (isSel) Color.Black else Color.White,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -539,10 +748,10 @@ fun EditorScreen(
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("CLEAR ALL OBJECTS", color = Color.Red)
+                        Text("CLEAR ALL OBJECTS", color = Color.Red, fontWeight = FontWeight.Bold)
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
                         onClick = { showSettingsDialog = false },

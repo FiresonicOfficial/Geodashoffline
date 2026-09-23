@@ -41,10 +41,11 @@ object GameRenderer {
         // 3. Draw game objects in active camera viewport only
         val minX = cameraX - 2f
         val maxX = cameraX + (width / tileSize) + 2.5f
+        val sawAngle = engine.sawRotation
         for (obj in engine.sortedObjects) {
             if (obj.x > maxX) break
             if (obj.x + obj.type.width < minX) continue
-            drawGameObject(scope, obj, cameraX, groundScreenY, tileSize)
+            drawGameObject(scope, obj, cameraX, groundScreenY, tileSize, sawAngle)
         }
 
         // 4. Draw practice mode checkpoints
@@ -174,12 +175,13 @@ object GameRenderer {
         )
     }
 
-    private fun drawGameObject(
+    fun drawGameObject(
         scope: DrawScope,
         obj: GameObject,
         cameraX: Float,
         groundScreenY: Float,
-        tileSize: Float
+        tileSize: Float,
+        sawAngle: Float = 0f
     ) {
         val screenX = (obj.x - cameraX) * tileSize
         val screenY = groundScreenY - ((obj.y + obj.type.height) * tileSize)
@@ -210,6 +212,26 @@ object GameRenderer {
                 }
             }
 
+            ObjectType.BLOCK_OUTLINE -> {
+                scope.drawRect(
+                    color = Color(0xFF00E5FF).copy(alpha = 0.15f),
+                    topLeft = Offset(screenX, screenY),
+                    size = Size(objW, objH)
+                )
+                scope.drawRect(
+                    color = Color(0xFF00E5FF),
+                    topLeft = Offset(screenX, screenY),
+                    size = Size(objW, objH),
+                    style = Stroke(width = 2.5f)
+                )
+                scope.drawLine(
+                    color = Color(0xFF00E5FF).copy(alpha = 0.35f),
+                    start = Offset(screenX, screenY),
+                    end = Offset(screenX + objW, screenY + objH),
+                    strokeWidth = 1.5f
+                )
+            }
+
             ObjectType.SPIKE, ObjectType.SPIKE_SMALL, ObjectType.SPIKE_DUAL -> {
                 spikePath.reset()
                 spikePath.moveTo(screenX, screenY + objH)
@@ -230,6 +252,102 @@ object GameRenderer {
                     color = Color(0xFFFF8A80),
                     style = Stroke(width = 2.5f)
                 )
+            }
+
+            ObjectType.SPIKE_TRIPLE, ObjectType.SPIKE_FOUR -> {
+                val spikeCount = if (obj.type == ObjectType.SPIKE_TRIPLE) 3 else 4
+                val singleSpikeW = objW / spikeCount
+                for (s in 0 until spikeCount) {
+                    val sx = screenX + (s * singleSpikeW)
+                    spikePath.reset()
+                    spikePath.moveTo(sx, screenY + objH)
+                    spikePath.lineTo(sx + singleSpikeW * 0.5f, screenY)
+                    spikePath.lineTo(sx + singleSpikeW, screenY + objH)
+                    spikePath.close()
+
+                    scope.drawPath(
+                        path = spikePath,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xFFFF1744), Color(0xFF7F0000)),
+                            startY = screenY,
+                            endY = screenY + objH
+                        )
+                    )
+                    scope.drawPath(
+                        path = spikePath,
+                        color = Color(0xFFFF8A80),
+                        style = Stroke(width = 2.5f)
+                    )
+                }
+            }
+
+            ObjectType.SAWBLADE_LARGE, ObjectType.SAWBLADE_MEDIUM, ObjectType.SAWBLADE_SMALL -> {
+                val center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
+                val radius = objW * 0.46f
+
+                // Outer teeth rotation
+                scope.rotate(sawAngle, center) {
+                    val toothCount = if (obj.type == ObjectType.SAWBLADE_LARGE) 12 else 8
+                    val angleStep = 360f / toothCount
+                    for (i in 0 until toothCount) {
+                        rotate(i * angleStep, center) {
+                            val bladePath = Path()
+                            bladePath.moveTo(center.x - radius * 0.2f, center.y - radius * 0.8f)
+                            bladePath.lineTo(center.x, center.y - radius * 1.08f)
+                            bladePath.lineTo(center.x + radius * 0.2f, center.y - radius * 0.8f)
+                            bladePath.close()
+                            drawPath(bladePath, color = Color(0xFFFF5722))
+                        }
+                    }
+
+                    // Main blade disc
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFFFF9E80), Color(0xFFD84315), Color(0xFF3E2723)),
+                            center = center,
+                            radius = radius
+                        ),
+                        radius = radius * 0.86f,
+                        center = center
+                    )
+
+                    // Sharp outer rim
+                    drawCircle(
+                        color = Color(0xFFFFCCBC),
+                        radius = radius * 0.86f,
+                        center = center,
+                        style = Stroke(width = 2.5f)
+                    )
+
+                    // Inner saw vents / slots
+                    for (i in 0 until 4) {
+                        rotate(i * 90f + 45f, center) {
+                            drawLine(
+                                color = Color.Black.copy(alpha = 0.5f),
+                                start = Offset(center.x, center.y - radius * 0.65f),
+                                end = Offset(center.x, center.y - radius * 0.25f),
+                                strokeWidth = 3f
+                            )
+                        }
+                    }
+
+                    // Central metallic hub
+                    drawCircle(
+                        color = Color(0xFF263238),
+                        radius = radius * 0.32f,
+                        center = center
+                    )
+                    drawCircle(
+                        color = Color(0xFFFF5722),
+                        radius = radius * 0.16f,
+                        center = center
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = radius * 0.08f,
+                        center = center
+                    )
+                }
             }
 
             ObjectType.SPIKE_HANGING -> {
@@ -254,7 +372,7 @@ object GameRenderer {
                 )
             }
 
-            ObjectType.PAD_YELLOW, ObjectType.PAD_PINK, ObjectType.PAD_GRAVITY -> {
+            ObjectType.PAD_YELLOW, ObjectType.PAD_PINK, ObjectType.PAD_RED, ObjectType.PAD_GRAVITY -> {
                 val padColor = Color(obj.type.primaryColorHex)
                 scope.drawRoundRect(
                     color = padColor,
@@ -270,7 +388,8 @@ object GameRenderer {
                 )
             }
 
-            ObjectType.ORB_YELLOW, ObjectType.ORB_PINK, ObjectType.ORB_BLUE, ObjectType.ORB_GREEN -> {
+            ObjectType.ORB_YELLOW, ObjectType.ORB_PINK, ObjectType.ORB_BLUE, ObjectType.ORB_GREEN,
+            ObjectType.ORB_RED, ObjectType.ORB_BLACK, ObjectType.ORB_DASH -> {
                 val orbColor = Color(obj.type.primaryColorHex)
                 val center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
                 val radius = objW * 0.45f
@@ -288,12 +407,12 @@ object GameRenderer {
                     style = Stroke(width = 4f)
                 )
                 scope.drawCircle(
-                    color = orbColor.copy(alpha = 0.8f),
-                    radius = radius * 0.5f,
+                    color = if (obj.type == ObjectType.ORB_BLACK) Color(0xFF1A0033) else orbColor.copy(alpha = 0.8f),
+                    radius = radius * 0.55f,
                     center = center
                 )
                 scope.drawCircle(
-                    color = Color.White,
+                    color = if (obj.type == ObjectType.ORB_BLACK) Color(0xFFD500F9) else Color.White,
                     radius = radius * 0.25f,
                     center = center
                 )
@@ -301,7 +420,8 @@ object GameRenderer {
 
             ObjectType.PORTAL_SHIP, ObjectType.PORTAL_CUBE,
             ObjectType.PORTAL_GRAVITY_INVERT, ObjectType.PORTAL_GRAVITY_NORMAL,
-            ObjectType.PORTAL_SPEED_0_5X, ObjectType.PORTAL_SPEED_1X, ObjectType.PORTAL_SPEED_2X -> {
+            ObjectType.PORTAL_SPEED_0_5X, ObjectType.PORTAL_SPEED_1X, ObjectType.PORTAL_SPEED_2X,
+            ObjectType.PORTAL_SPEED_3X, ObjectType.PORTAL_SPEED_4X -> {
                 val portalColor = Color(obj.type.primaryColorHex)
                 scope.drawOval(
                     color = portalColor.copy(alpha = 0.35f),

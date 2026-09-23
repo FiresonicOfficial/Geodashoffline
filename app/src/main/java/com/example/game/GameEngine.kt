@@ -72,6 +72,7 @@ class GameEngine(
     // Visual particles and effects
     val particles = mutableListOf<Particle>()
     val orbRingEffects = mutableListOf<OrbRing>()
+    var sawRotation: Float = 0f
 
     // Pre-sorted objects for ultra-fast spatial queries
     val sortedObjects: List<GameObject> = level.objects.sortedBy { it.x }
@@ -246,6 +247,25 @@ class GameEngine(
                 GameAudioEngine.playGravity()
                 GameAudioEngine.playOrb()
             }
+            ObjectType.ORB_RED -> {
+                playerVy = -23f * gravityDirection
+                isOnGround = false
+                jumpsCount++
+                GameAudioEngine.playOrb()
+            }
+            ObjectType.ORB_BLACK -> {
+                playerVy = 22f * gravityDirection
+                isOnGround = false
+                jumpsCount++
+                GameAudioEngine.playOrb()
+            }
+            ObjectType.ORB_DASH -> {
+                playerVy = -6f * gravityDirection
+                playerX += 2.2f
+                isOnGround = false
+                jumpsCount++
+                GameAudioEngine.playOrb()
+            }
             else -> {}
         }
     }
@@ -311,6 +331,8 @@ class GameEngine(
     }
 
     private fun updateVisualEffects(dt: Float) {
+        sawRotation = (sawRotation + 320f * dt) % 360f
+
         // Trail particles
         if (!isDead && !isWon && Random.nextFloat() < 0.45f && particles.size < 40) {
             particles.add(
@@ -441,10 +463,26 @@ class GameEngine(
             if (!isOverlap) continue
 
             when {
+                obj.type in listOf(ObjectType.SAWBLADE_LARGE, ObjectType.SAWBLADE_MEDIUM, ObjectType.SAWBLADE_SMALL) -> {
+                    // Circular collision test for rotating hazard sawblades
+                    val sCenterX = obj.x + obj.type.width * 0.5f
+                    val sCenterY = obj.y + obj.type.height * 0.5f
+                    val pCenterX = playerX + 0.5f
+                    val pCenterY = playerY + 0.5f
+                    val dx = pCenterX - sCenterX
+                    val dy = pCenterY - sCenterY
+                    val distSq = (dx * dx) + (dy * dy)
+                    val lethalRadius = (obj.type.width * 0.43f) + 0.28f
+                    if (distSq < lethalRadius * lethalRadius) {
+                        killPlayer()
+                        return
+                    }
+                }
+
                 obj.type.isLethal -> {
                     // Geometry Dash fairness: tighter hitbox for spikes
-                    val insetX = 0.22f
-                    val insetY = 0.18f
+                    val insetX = 0.16f
+                    val insetY = 0.14f
                     val sLeft = oLeft + insetX
                     val sRight = oRight - insetX
                     val sBottom = oBottom + insetY
@@ -538,6 +576,12 @@ class GameEngine(
                 jumpsCount++
                 GameAudioEngine.playPad()
             }
+            ObjectType.PAD_RED -> {
+                playerVy = -27f * gravityDirection
+                isOnGround = false
+                jumpsCount++
+                GameAudioEngine.playPad()
+            }
             ObjectType.PAD_GRAVITY -> {
                 gravityDirection = -gravityDirection
                 playerVy = -10f * gravityDirection
@@ -580,6 +624,8 @@ class GameEngine(
             ObjectType.PORTAL_SPEED_0_5X -> speedMultiplier = 8f
             ObjectType.PORTAL_SPEED_1X -> speedMultiplier = 10.5f
             ObjectType.PORTAL_SPEED_2X -> speedMultiplier = 14f
+            ObjectType.PORTAL_SPEED_3X -> speedMultiplier = 17.5f
+            ObjectType.PORTAL_SPEED_4X -> speedMultiplier = 21f
             else -> {}
         }
     }

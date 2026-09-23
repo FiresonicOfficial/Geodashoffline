@@ -145,76 +145,48 @@ class LevelRepository(
     }
 
     private suspend fun checkAndUnlockCampaignLevels() {
-        val allMain = listOfNotNull(
-            levelDao.getLevelById("main_stereo_madness"),
-            levelDao.getLevelById("main_back_on_track"),
-            levelDao.getLevelById("main_polargeist"),
-            levelDao.getLevelById("main_dry_out"),
-            levelDao.getLevelById("main_cant_let_go"),
-            levelDao.getLevelById("main_jumper"),
-            levelDao.getLevelById("main_base_after_base"),
-            levelDao.getLevelById("main_clubstep")
+        val campaignIds = listOf(
+            "main_stereo_madness",
+            "main_back_on_track",
+            "main_polargeist",
+            "main_dry_out",
+            "main_base_after_base",
+            "main_cant_let_go",
+            "main_jumper",
+            "main_time_machine",
+            "main_cycles",
+            "main_xstep",
+            "main_clutterfunk",
+            "main_theory_of_everything",
+            "main_electroman",
+            "main_clubstep",
+            "main_deadlocked"
         )
 
+        val allMain = campaignIds.mapNotNull { levelDao.getLevelById(it) }
         val totalStars = allMain.filter { it.completed }.sumOf { it.stars }
         val unlockedIds = mutableSetOf<String>()
         unlockedIds.add("main_stereo_madness") // Always unlocked
 
-        val stereo = allMain.find { it.id == "main_stereo_madness" }
-        val backOnTrack = allMain.find { it.id == "main_back_on_track" }
-        val polargeist = allMain.find { it.id == "main_polargeist" }
-        val dryOut = allMain.find { it.id == "main_dry_out" }
-        val cantLetGo = allMain.find { it.id == "main_cant_let_go" }
-        val jumper = allMain.find { it.id == "main_jumper" }
-        val baseAfterBase = allMain.find { it.id == "main_base_after_base" }
+        val starThresholds = listOf(
+            0, 1, 3, 6, 8, 10, 14, 18, 22, 26, 30, 35, 40, 45, 50
+        )
 
-        // Unlock Back On Track
-        if ((stereo?.bestPercentage ?: 0) >= 50 || (stereo?.completed == true) || totalStars >= 1) {
-            unlockedIds.add("main_back_on_track")
-            levelDao.unlockLevel("main_back_on_track")
-            playerProgressDao.unlockLevelHighScore("main_back_on_track")
-        }
+        for (i in 1 until campaignIds.size) {
+            val currId = campaignIds[i]
+            val prevId = campaignIds[i - 1]
+            val prevLevel = allMain.find { it.id == prevId }
+            val reqStars = starThresholds[i]
 
-        // Unlock Polargeist
-        if ((backOnTrack?.bestPercentage ?: 0) >= 50 || (backOnTrack?.completed == true) || totalStars >= 3) {
-            unlockedIds.add("main_polargeist")
-            levelDao.unlockLevel("main_polargeist")
-            playerProgressDao.unlockLevelHighScore("main_polargeist")
-        }
+            val canUnlock = (prevLevel?.completed == true) ||
+                    ((prevLevel?.bestPercentage ?: 0) >= 50) ||
+                    totalStars >= reqStars
 
-        // Unlock Dry Out
-        if ((polargeist?.bestPercentage ?: 0) >= 50 || (polargeist?.completed == true) || totalStars >= 6) {
-            unlockedIds.add("main_dry_out")
-            levelDao.unlockLevel("main_dry_out")
-            playerProgressDao.unlockLevelHighScore("main_dry_out")
-        }
-
-        // Unlock Can't Let Go
-        if ((dryOut?.bestPercentage ?: 0) >= 50 || (dryOut?.completed == true) || totalStars >= 10) {
-            unlockedIds.add("main_cant_let_go")
-            levelDao.unlockLevel("main_cant_let_go")
-            playerProgressDao.unlockLevelHighScore("main_cant_let_go")
-        }
-
-        // Unlock Jumper
-        if ((cantLetGo?.bestPercentage ?: 0) >= 50 || (cantLetGo?.completed == true) || totalStars >= 14) {
-            unlockedIds.add("main_jumper")
-            levelDao.unlockLevel("main_jumper")
-            playerProgressDao.unlockLevelHighScore("main_jumper")
-        }
-
-        // Unlock Base After Base
-        if ((jumper?.bestPercentage ?: 0) >= 50 || (jumper?.completed == true) || totalStars >= 18) {
-            unlockedIds.add("main_base_after_base")
-            levelDao.unlockLevel("main_base_after_base")
-            playerProgressDao.unlockLevelHighScore("main_base_after_base")
-        }
-
-        // Unlock Clubstep (Demon)
-        if ((baseAfterBase?.completed == true) || (baseAfterBase?.bestPercentage ?: 0) >= 75 || totalStars >= 24) {
-            unlockedIds.add("main_clubstep")
-            levelDao.unlockLevel("main_clubstep")
-            playerProgressDao.unlockLevelHighScore("main_clubstep")
+            if (canUnlock) {
+                unlockedIds.add(currId)
+                levelDao.unlockLevel(currId)
+                playerProgressDao.unlockLevelHighScore(currId)
+            }
         }
 
         // Persist unlocked list in player progress
@@ -235,16 +207,24 @@ class LevelRepository(
         isPractice: Boolean
     ) {
         val current = playerProgressDao.getPlayerProgress() ?: PlayerProgressEntity.createDefault()
-        val allMain = listOfNotNull(
-            levelDao.getLevelById("main_stereo_madness"),
-            levelDao.getLevelById("main_back_on_track"),
-            levelDao.getLevelById("main_polargeist"),
-            levelDao.getLevelById("main_dry_out"),
-            levelDao.getLevelById("main_cant_let_go"),
-            levelDao.getLevelById("main_jumper"),
-            levelDao.getLevelById("main_base_after_base"),
-            levelDao.getLevelById("main_clubstep")
+        val campaignIds = listOf(
+            "main_stereo_madness",
+            "main_back_on_track",
+            "main_polargeist",
+            "main_dry_out",
+            "main_base_after_base",
+            "main_cant_let_go",
+            "main_jumper",
+            "main_time_machine",
+            "main_cycles",
+            "main_xstep",
+            "main_clutterfunk",
+            "main_theory_of_everything",
+            "main_electroman",
+            "main_clubstep",
+            "main_deadlocked"
         )
+        val allMain = campaignIds.mapNotNull { levelDao.getLevelById(it) }
 
         val totalStars = allMain.filter { it.completed }.sumOf { it.stars }
         val totalCoins = allMain.sumOf { it.coinsCollected }

@@ -29,14 +29,12 @@ jobs:
       - name: Accept Android SDK Licenses
         run: |
           mkdir -p "$ANDROID_HOME/licenses" || true
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license" || true
-          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license" || true
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license" || true
-          if [ -d "$ANDROID_HOME/cmdline-tools/latest/bin" ]; then
-            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-          elif command -v sdkmanager &> /dev/null; then
-            yes | sdkmanager --licenses || true
-          fi
+          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\ne6b7c2ab7fa2298e15165e1118370ff9c1f82663\n" > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf "84831b9409646a918e30573bab4c9c91346d8abd\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+          printf "601085b94cd77f6b54b86eebd637d4c2a17b4a84\n" > "$ANDROID_HOME/licenses/android-googletv-license"
+          printf "859f317696f67ef3d7f30a50a5560e7834b43903\n" > "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license"
+          printf "33b6a2b64f07f11d23a55955ab86103a4930c657\n" > "$ANDROID_HOME/licenses/google-gdk-license"
+          printf "e9acab5b5fbb560a72cfa4f46c0b907b9468f2d0\n" > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
