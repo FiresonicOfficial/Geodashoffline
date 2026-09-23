@@ -6,15 +6,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.example.model.GameObject
 import com.example.model.ObjectType
-import kotlin.math.cos
-import kotlin.math.sin
 
 object GameRenderer {
+
+    // Reusable Path caches to completely avoid per-frame garbage collection
+    private val spikePath = Path()
+    private val hangingSpikePath = Path()
+    private val shipPath = Path()
+    private val diamondPath = Path()
 
     fun renderGame(
         scope: DrawScope,
@@ -25,26 +28,26 @@ object GameRenderer {
         val width = scope.size.width
         val height = scope.size.height
 
-        // Unit scale: 1 grid unit = tileSize px (e.g. height / 10)
+        // Unit scale: 1 grid unit = tileSize px
         val tileSize = (height / 10.5f)
         val groundScreenY = height - (tileSize * 1.8f)
 
-        // Draw rhythmic background
+        // 1. Draw rhythmic background
         drawBackground(scope, engine, beatPulse, cameraX, width, groundScreenY)
 
-        // Draw ground and grid lines
+        // 2. Draw ground and neon grid lines
         drawGround(scope, engine, beatPulse, cameraX, width, height, groundScreenY, tileSize)
 
-        // Draw game objects in view
+        // 3. Draw game objects in active camera viewport only
         val minX = cameraX - 2f
-        val maxX = cameraX + (width / tileSize) + 2f
-        for (obj in engine.level.objects) {
-            if (obj.x in minX..maxX) {
-                drawGameObject(scope, obj, cameraX, groundScreenY, tileSize)
-            }
+        val maxX = cameraX + (width / tileSize) + 2.5f
+        for (obj in engine.sortedObjects) {
+            if (obj.x > maxX) break
+            if (obj.x + obj.type.width < minX) continue
+            drawGameObject(scope, obj, cameraX, groundScreenY, tileSize)
         }
 
-        // Draw practice mode checkpoints
+        // 4. Draw practice mode checkpoints
         if (engine.isPracticeMode) {
             for (cp in engine.checkpoints) {
                 if (cp.x in minX..maxX) {
@@ -53,10 +56,10 @@ object GameRenderer {
             }
         }
 
-        // Draw particles & ring pulses
+        // 5. Draw particles & ring pulses
         drawParticles(scope, engine, cameraX, groundScreenY, tileSize)
 
-        // Draw player
+        // 6. Draw player
         if (!engine.isDead) {
             drawPlayer(scope, engine, cameraX, groundScreenY, tileSize)
         }
@@ -148,7 +151,7 @@ object GameRenderer {
             strokeWidth = 1.5f
         )
 
-        // Scrolling ground checker / vertical lines
+        // Scrolling ground vertical lines
         val scrollOffset = (cameraX * tileSize) % tileSize
         val lineColor = Color.White.copy(alpha = 0.12f)
         var x = -scrollOffset
@@ -162,7 +165,7 @@ object GameRenderer {
             x += tileSize
         }
 
-        // Horizontal ground grid line
+        // Horizontal ground accent line
         scope.drawLine(
             color = lineColor,
             start = Offset(0f, groundScreenY + tileSize * 0.6f),
@@ -186,20 +189,17 @@ object GameRenderer {
         when (obj.type) {
             ObjectType.BLOCK, ObjectType.BLOCK_DARK, ObjectType.BLOCK_GRID, ObjectType.HALF_BLOCK -> {
                 val blockColor = Color(obj.type.primaryColorHex)
-                // Solid fill
                 scope.drawRect(
                     color = blockColor.copy(alpha = 0.85f),
                     topLeft = Offset(screenX, screenY),
                     size = Size(objW, objH)
                 )
-                // Outer highlight border
                 scope.drawRect(
                     color = Color.White.copy(alpha = 0.8f),
                     topLeft = Offset(screenX, screenY),
                     size = Size(objW, objH),
                     style = Stroke(width = 2.5f)
                 )
-                // Inner dark pattern
                 if (objH >= tileSize * 0.8f) {
                     val inset = 6f
                     scope.drawRect(
@@ -211,38 +211,36 @@ object GameRenderer {
             }
 
             ObjectType.SPIKE, ObjectType.SPIKE_SMALL, ObjectType.SPIKE_DUAL -> {
-                val path = Path().apply {
-                    moveTo(screenX, screenY + objH)
-                    lineTo(screenX + objW * 0.5f, screenY)
-                    lineTo(screenX + objW, screenY + objH)
-                    close()
-                }
-                // Gradient fill
+                spikePath.reset()
+                spikePath.moveTo(screenX, screenY + objH)
+                spikePath.lineTo(screenX + objW * 0.5f, screenY)
+                spikePath.lineTo(screenX + objW, screenY + objH)
+                spikePath.close()
+
                 scope.drawPath(
-                    path = path,
+                    path = spikePath,
                     brush = Brush.verticalGradient(
                         colors = listOf(Color(0xFFFF1744), Color(0xFF7F0000)),
                         startY = screenY,
                         endY = screenY + objH
                     )
                 )
-                // Glowing border
                 scope.drawPath(
-                    path = path,
+                    path = spikePath,
                     color = Color(0xFFFF8A80),
                     style = Stroke(width = 2.5f)
                 )
             }
 
             ObjectType.SPIKE_HANGING -> {
-                val path = Path().apply {
-                    moveTo(screenX, screenY)
-                    lineTo(screenX + objW * 0.5f, screenY + objH)
-                    lineTo(screenX + objW, screenY)
-                    close()
-                }
+                hangingSpikePath.reset()
+                hangingSpikePath.moveTo(screenX, screenY)
+                hangingSpikePath.lineTo(screenX + objW * 0.5f, screenY + objH)
+                hangingSpikePath.lineTo(screenX + objW, screenY)
+                hangingSpikePath.close()
+
                 scope.drawPath(
-                    path = path,
+                    path = hangingSpikePath,
                     brush = Brush.verticalGradient(
                         colors = listOf(Color(0xFF7F0000), Color(0xFFFF1744)),
                         startY = screenY,
@@ -250,7 +248,7 @@ object GameRenderer {
                     )
                 )
                 scope.drawPath(
-                    path = path,
+                    path = hangingSpikePath,
                     color = Color(0xFFFF8A80),
                     style = Stroke(width = 2.5f)
                 )
@@ -277,21 +275,18 @@ object GameRenderer {
                 val center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
                 val radius = objW * 0.45f
 
-                // Outer pulsing ring
                 scope.drawCircle(
                     color = orbColor.copy(alpha = 0.35f),
                     radius = radius * 1.25f,
                     center = center,
                     style = Stroke(width = 3f)
                 )
-                // Inner ring
                 scope.drawCircle(
                     color = orbColor,
                     radius = radius,
                     center = center,
                     style = Stroke(width = 4f)
                 )
-                // Center glowing sphere
                 scope.drawCircle(
                     color = orbColor.copy(alpha = 0.8f),
                     radius = radius * 0.5f,
@@ -308,10 +303,6 @@ object GameRenderer {
             ObjectType.PORTAL_GRAVITY_INVERT, ObjectType.PORTAL_GRAVITY_NORMAL,
             ObjectType.PORTAL_SPEED_0_5X, ObjectType.PORTAL_SPEED_1X, ObjectType.PORTAL_SPEED_2X -> {
                 val portalColor = Color(obj.type.primaryColorHex)
-                val centerX = screenX + objW * 0.5f
-                val centerY = screenY + objH * 0.5f
-
-                // Swirling portal oval
                 scope.drawOval(
                     color = portalColor.copy(alpha = 0.35f),
                     topLeft = Offset(screenX, screenY),
@@ -334,20 +325,17 @@ object GameRenderer {
             ObjectType.COIN -> {
                 val center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
                 val coinRadius = objW * 0.4f
-                // Gold outer
                 scope.drawCircle(
                     color = Color(0xFFFFD700),
                     radius = coinRadius,
                     center = center
                 )
-                // Inner rim
                 scope.drawCircle(
                     color = Color(0xFFFFA000),
                     radius = coinRadius * 0.8f,
                     center = center,
                     style = Stroke(width = 3f)
                 )
-                // Star inside coin
                 scope.drawCircle(
                     color = Color.White,
                     radius = coinRadius * 0.35f,
@@ -359,25 +347,25 @@ object GameRenderer {
 
     private fun drawCheckpointDiamond(
         scope: DrawScope,
-        x: Float,
-        y: Float,
+        cx: Float,
+        cy: Float,
         cameraX: Float,
         groundScreenY: Float,
         tileSize: Float
     ) {
-        val cx = (x + 0.5f - cameraX) * tileSize
-        val cy = groundScreenY - ((y + 0.5f) * tileSize)
-        val dSize = tileSize * 0.35f
+        val sx = (cx - cameraX) * tileSize
+        val sy = groundScreenY - (cy * tileSize)
+        val size = tileSize * 0.8f
 
-        val path = Path().apply {
-            moveTo(cx, cy - dSize)
-            lineTo(cx + dSize, cy)
-            lineTo(cx, cy + dSize)
-            lineTo(cx - dSize, cy)
-            close()
-        }
-        scope.drawPath(path = path, color = Color(0xFF00E676))
-        scope.drawPath(path = path, color = Color.White, style = Stroke(width = 2f))
+        diamondPath.reset()
+        diamondPath.moveTo(sx + size * 0.5f, sy)
+        diamondPath.lineTo(sx + size, sy + size * 0.5f)
+        diamondPath.lineTo(sx + size * 0.5f, sy + size)
+        diamondPath.lineTo(sx, sy + size * 0.5f)
+        diamondPath.close()
+
+        scope.drawPath(path = diamondPath, color = Color(0xFF00E676).copy(alpha = 0.6f))
+        scope.drawPath(path = diamondPath, color = Color.White, style = Stroke(width = 2f))
     }
 
     private fun drawPlayer(
@@ -442,17 +430,17 @@ object GameRenderer {
                 )
             } else {
                 // Ship mode: sleek rocket
-                val shipPath = Path().apply {
-                    moveTo(px + pSize, py + pSize * 0.5f) // nose
-                    lineTo(px, py + pSize * 0.15f) // top tail
-                    lineTo(px + pSize * 0.25f, py + pSize * 0.5f) // indent
-                    lineTo(px, py + pSize * 0.85f) // bottom tail
-                    close()
-                }
+                shipPath.reset()
+                shipPath.moveTo(px + pSize, py + pSize * 0.5f) // nose
+                shipPath.lineTo(px, py + pSize * 0.15f) // top tail
+                shipPath.lineTo(px + pSize * 0.25f, py + pSize * 0.5f) // indent
+                shipPath.lineTo(px, py + pSize * 0.85f) // bottom tail
+                shipPath.close()
+
                 scope.drawPath(path = shipPath, color = Color(0xFFFF4081))
                 scope.drawPath(path = shipPath, color = Color.White, style = Stroke(width = 2.5f))
 
-                // Mini cube pilot inside cockpit!
+                // Mini cube pilot inside cockpit
                 val cockpitSize = pSize * 0.35f
                 scope.drawRect(
                     color = Color(0xFFFFE600),
@@ -483,12 +471,12 @@ object GameRenderer {
         }
 
         // Orb trigger ripple waves
-        for ((rx, ry, r) in engine.orbRingEffects) {
-            val sx = (rx - cameraX) * tileSize
-            val sy = groundScreenY - (ry * tileSize)
-            val ringRadius = r * tileSize
+        for (ring in engine.orbRingEffects) {
+            val sx = (ring.x - cameraX) * tileSize
+            val sy = groundScreenY - (ring.y * tileSize)
+            val ringRadius = ring.r * tileSize
             scope.drawCircle(
-                color = Color.White.copy(alpha = (1f - (r / 1.8f)).coerceIn(0f, 1f)),
+                color = Color.White.copy(alpha = (1f - (ring.r / 1.8f)).coerceIn(0f, 1f)),
                 radius = ringRadius,
                 center = Offset(sx, sy),
                 style = Stroke(width = 3f)

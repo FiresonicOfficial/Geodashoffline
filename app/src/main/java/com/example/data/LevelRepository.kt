@@ -14,11 +14,30 @@ class LevelRepository(
 ) {
 
     init {
-        // Seed initial campaign levels and player progress if database is new
+        // Seed & sync campaign levels and player progress
         CoroutineScope(Dispatchers.IO).launch {
             val defaults = DefaultLevels.getAllDefaultLevels()
-            val entities = defaults.map { LevelEntity.fromDomainModel(it) }
-            levelDao.insertAll(entities)
+            for (def in defaults) {
+                val existing = levelDao.getLevelById(def.id)
+                if (existing == null) {
+                    levelDao.insertOrUpdate(LevelEntity.fromDomainModel(def))
+                } else {
+                    // Update level layout & metadata while strictly preserving user completion & scores
+                    val updated = LevelEntity.fromDomainModel(def).copy(
+                        isUnlocked = existing.isUnlocked || def.isUnlocked,
+                        bestPercentage = existing.bestPercentage,
+                        highScore = existing.highScore,
+                        completed = existing.completed,
+                        attempts = existing.attempts,
+                        jumps = existing.jumps,
+                        coinsCollected = existing.coinsCollected,
+                        userRating = existing.userRating,
+                        userRatingsCount = existing.userRatingsCount,
+                        likesCount = existing.likesCount
+                    )
+                    levelDao.insertOrUpdate(updated)
+                }
+            }
 
             // Seed initial player progress if empty
             val currentProgress = playerProgressDao.getPlayerProgress()
@@ -119,25 +138,20 @@ class LevelRepository(
         )
 
         // 3. Evaluate Campaign Progression unlocks
-        checkAndUnlockCampaignLevels(id, newPercentage, completed)
+        checkAndUnlockCampaignLevels()
 
         // 4. Update Player Progress & Campaign Resume State
         updatePlayerResumeAndStats(id, levelName, newPercentage, points, isPractice)
     }
 
-    private suspend fun checkAndUnlockCampaignLevels(
-        lastPlayedId: String,
-        percentage: Int,
-        completed: Boolean
-    ) {
-        val levels = levelDao.getLevelById("main_stereo_madness") ?: return
-
-        // Fetch all current main levels to inspect progress
+    private suspend fun checkAndUnlockCampaignLevels() {
         val allMain = listOfNotNull(
             levelDao.getLevelById("main_stereo_madness"),
             levelDao.getLevelById("main_back_on_track"),
             levelDao.getLevelById("main_polargeist"),
             levelDao.getLevelById("main_dry_out"),
+            levelDao.getLevelById("main_cant_let_go"),
+            levelDao.getLevelById("main_jumper"),
             levelDao.getLevelById("main_base_after_base"),
             levelDao.getLevelById("main_clubstep")
         )
@@ -150,6 +164,8 @@ class LevelRepository(
         val backOnTrack = allMain.find { it.id == "main_back_on_track" }
         val polargeist = allMain.find { it.id == "main_polargeist" }
         val dryOut = allMain.find { it.id == "main_dry_out" }
+        val cantLetGo = allMain.find { it.id == "main_cant_let_go" }
+        val jumper = allMain.find { it.id == "main_jumper" }
         val baseAfterBase = allMain.find { it.id == "main_base_after_base" }
 
         // Unlock Back On Track
@@ -173,15 +189,29 @@ class LevelRepository(
             playerProgressDao.unlockLevelHighScore("main_dry_out")
         }
 
-        // Unlock Base After Base
+        // Unlock Can't Let Go
         if ((dryOut?.bestPercentage ?: 0) >= 50 || (dryOut?.completed == true) || totalStars >= 10) {
+            unlockedIds.add("main_cant_let_go")
+            levelDao.unlockLevel("main_cant_let_go")
+            playerProgressDao.unlockLevelHighScore("main_cant_let_go")
+        }
+
+        // Unlock Jumper
+        if ((cantLetGo?.bestPercentage ?: 0) >= 50 || (cantLetGo?.completed == true) || totalStars >= 14) {
+            unlockedIds.add("main_jumper")
+            levelDao.unlockLevel("main_jumper")
+            playerProgressDao.unlockLevelHighScore("main_jumper")
+        }
+
+        // Unlock Base After Base
+        if ((jumper?.bestPercentage ?: 0) >= 50 || (jumper?.completed == true) || totalStars >= 18) {
             unlockedIds.add("main_base_after_base")
             levelDao.unlockLevel("main_base_after_base")
             playerProgressDao.unlockLevelHighScore("main_base_after_base")
         }
 
         // Unlock Clubstep (Demon)
-        if ((baseAfterBase?.completed == true) || (baseAfterBase?.bestPercentage ?: 0) >= 75 || totalStars >= 14) {
+        if ((baseAfterBase?.completed == true) || (baseAfterBase?.bestPercentage ?: 0) >= 75 || totalStars >= 24) {
             unlockedIds.add("main_clubstep")
             levelDao.unlockLevel("main_clubstep")
             playerProgressDao.unlockLevelHighScore("main_clubstep")
@@ -210,6 +240,8 @@ class LevelRepository(
             levelDao.getLevelById("main_back_on_track"),
             levelDao.getLevelById("main_polargeist"),
             levelDao.getLevelById("main_dry_out"),
+            levelDao.getLevelById("main_cant_let_go"),
+            levelDao.getLevelById("main_jumper"),
             levelDao.getLevelById("main_base_after_base"),
             levelDao.getLevelById("main_clubstep")
         )

@@ -3,9 +3,6 @@ package com.example.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -20,8 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -45,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,8 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -74,15 +74,16 @@ fun GamePlayScreen(
     var isPaused by remember { mutableStateOf(false) }
     var showVictoryDialog by remember { mutableStateOf(false) }
     var showRateDialog by remember { mutableStateOf(false) }
-    var beatPulse by remember { mutableFloatStateOf(0f) }
+    var beatPulseVal by remember { mutableFloatStateOf(0f) }
     var currentPercentage by remember { mutableIntStateOf(0) }
     var attemptDisplay by remember { mutableIntStateOf(1) }
+    var frameTick by remember { mutableLongStateOf(0L) }
 
     // Start audio track corresponding to level
     DisposableEffect(level) {
         GameAudioEngine.currentTrackId = level.musicTrack
         GameAudioEngine.onBeatPulse = { pulse ->
-            beatPulse = pulse
+            beatPulseVal = pulse
         }
         onDispose {
             GameAudioEngine.onBeatPulse = null
@@ -97,26 +98,34 @@ fun GamePlayScreen(
                 showVictoryDialog = true
                 onFinish(100, true, attempts, jumps, coins)
             },
-            onDeath = { pct ->
+            onDeath = { _ ->
                 // Death event
             }
         )
     }
 
-    // 60 FPS Game Loop
+    // High performance game loop (runs at native display refresh rate: 60/90/120 Hz)
     LaunchedEffect(isPaused, showVictoryDialog) {
         var lastFrameNanos = 0L
         while (!isPaused && !showVictoryDialog) {
             withFrameNanos { frameNanos ->
                 if (lastFrameNanos != 0L) {
-                    val dt = ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceIn(0.001f, 0.05f)
+                    val dt = ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceIn(0.001f, 0.04f)
                     engine.update(dt)
-                    currentPercentage = engine.percentage
-                    attemptDisplay = engine.attemptsCount
-                    // Fade beat pulse
-                    if (beatPulse > 0f) {
-                        beatPulse = (beatPulse - dt * 2.5f).coerceAtLeast(0f)
+
+                    // Only trigger HUD state writes when values actually change
+                    if (engine.percentage != currentPercentage) {
+                        currentPercentage = engine.percentage
                     }
+                    if (engine.attemptsCount != attemptDisplay) {
+                        attemptDisplay = engine.attemptsCount
+                    }
+                    if (beatPulseVal > 0f) {
+                        beatPulseVal = (beatPulseVal - dt * 2.5f).coerceAtLeast(0f)
+                    }
+
+                    // Invalidate Canvas draw phase directly without full Composable recomposition
+                    frameTick = frameNanos
                 }
                 lastFrameNanos = frameNanos
             }
@@ -130,20 +139,21 @@ fun GamePlayScreen(
             .pointerInput(isPaused, showVictoryDialog) {
                 if (isPaused || showVictoryDialog) return@pointerInput
                 awaitEachGesture {
-                    val down = awaitFirstDown()
+                    awaitFirstDown()
                     engine.onPointerDown()
                     waitForUpOrCancellation()
                     engine.onPointerUp()
                 }
             }
     ) {
-        // Main Game Canvas
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        // Main Game Canvas (Only the draw lambda invalidates on frameTick)
+        Canvas(modifier = Modifier.fillMaxSize().testTag("game_canvas")) {
+            val tick = frameTick
             val cameraX = engine.playerX - 3.5f
             GameRenderer.renderGame(
                 scope = this,
                 engine = engine,
-                beatPulse = beatPulse,
+                beatPulse = beatPulseVal,
                 cameraX = cameraX
             )
         }
@@ -152,7 +162,7 @@ fun GamePlayScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 28.dp, start = 16.dp, end = 16.dp)
+                .padding(top = 24.dp, start = 16.dp, end = 16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -165,6 +175,7 @@ fun GamePlayScreen(
                     modifier = Modifier
                         .size(42.dp)
                         .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .testTag("pause_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Pause,
@@ -246,6 +257,7 @@ fun GamePlayScreen(
                         .size(52.dp)
                         .background(Color(0xFF21262D).copy(alpha = 0.85f), CircleShape)
                         .border(2.dp, Color.Red, CircleShape)
+                        .testTag("undo_checkpoint_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Undo,
@@ -262,6 +274,7 @@ fun GamePlayScreen(
                         .size(52.dp)
                         .background(Color(0xFF00E676).copy(alpha = 0.85f), CircleShape)
                         .border(2.dp, Color.White, CircleShape)
+                        .testTag("add_checkpoint_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -357,7 +370,7 @@ fun GamePlayScreen(
 
         // Victory Dialog (100% Reached!)
         if (showVictoryDialog) {
-            Dialog(onDismissRequest = { /* Must click continue */ }) {
+            Dialog(onDismissRequest = { /* Continue */ }) {
                 Card(
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),

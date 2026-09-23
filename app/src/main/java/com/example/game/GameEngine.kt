@@ -35,6 +35,12 @@ data class Particle(
     var life: Float = 0f
 )
 
+data class OrbRing(
+    var x: Float,
+    var y: Float,
+    var r: Float
+)
+
 class GameEngine(
     val level: Level,
     var isPracticeMode: Boolean = false,
@@ -63,9 +69,12 @@ class GameEngine(
     // Checkpoints for Practice Mode
     val checkpoints = mutableListOf<Checkpoint>()
 
-    // Visual particles
+    // Visual particles and effects
     val particles = mutableListOf<Particle>()
-    val orbRingEffects = mutableListOf<Triple<Float, Float, Float>>() // x, y, radius
+    val orbRingEffects = mutableListOf<OrbRing>()
+
+    // Pre-sorted objects for ultra-fast spatial queries
+    val sortedObjects: List<GameObject> = level.objects.sortedBy { it.x }
 
     // Level bounds
     val levelLength: Float = level.lengthInGridUnits
@@ -74,6 +83,9 @@ class GameEngine(
 
     // Death delay timer
     private var deathTimer: Float = 0f
+
+    // Fixed timestep physics accumulator for silky smooth 60/90/120 FPS
+    private var physicsAccumulator: Float = 0f
 
     init {
         resetPlayer(softReset = false)
@@ -93,6 +105,7 @@ class GameEngine(
             isOnGround = false
             isHolding = false
             deathTimer = 0f
+            physicsAccumulator = 0f
             return
         }
 
@@ -107,6 +120,7 @@ class GameEngine(
         isDead = false
         isHolding = false
         deathTimer = 0f
+        physicsAccumulator = 0f
 
         if (!softReset) {
             collectedCoinIds.clear()
@@ -165,19 +179,21 @@ class GameEngine(
         GameAudioEngine.playJump()
 
         // Jump dust particles
-        for (i in 0..5) {
-            particles.add(
-                Particle(
-                    x = playerX + 0.5f,
-                    y = if (gravityDirection > 0) playerY else playerY + 1f,
-                    vx = (Random.nextFloat() - 0.5f) * 4f,
-                    vy = (Random.nextFloat() * 3f) * gravityDirection,
-                    alpha = 1f,
-                    colorHex = 0xAAFFFFFF,
-                    size = 4f,
-                    maxLife = 0.25f
+        for (i in 0..4) {
+            if (particles.size < 40) {
+                particles.add(
+                    Particle(
+                        x = playerX + 0.5f,
+                        y = if (gravityDirection > 0) playerY else playerY + 1f,
+                        vx = (Random.nextFloat() - 0.5f) * 4f,
+                        vy = (Random.nextFloat() * 3f) * gravityDirection,
+                        alpha = 1f,
+                        colorHex = 0xAAFFFFFF,
+                        size = 4f,
+                        maxLife = 0.25f
+                    )
                 )
-            )
+            }
         }
     }
 
@@ -186,15 +202,22 @@ class GameEngine(
         val playerCenterY = playerY + 0.5f
         val triggerRadius = 1.35f
 
-        return level.objects.firstOrNull { obj ->
-            obj.type.category == com.example.model.ObjectCategory.ORBS &&
-                    abs(playerCenterX - (obj.x + 0.5f)) < triggerRadius &&
-                    abs(playerCenterY - (obj.y + 0.5f)) < triggerRadius
+        for (obj in sortedObjects) {
+            if (obj.x < playerX - 2f) continue
+            if (obj.x > playerX + 2f) break
+
+            if (obj.type.category == com.example.model.ObjectCategory.ORBS &&
+                abs(playerCenterX - (obj.x + 0.5f)) < triggerRadius &&
+                abs(playerCenterY - (obj.y + 0.5f)) < triggerRadius
+            ) {
+                return obj
+            }
         }
+        return null
     }
 
     private fun activateOrb(orb: GameObject) {
-        orbRingEffects.add(Triple(orb.x + 0.5f, orb.y + 0.5f, 0.2f))
+        orbRingEffects.add(OrbRing(orb.x + 0.5f, orb.y + 0.5f, 0.2f))
         when (orb.type) {
             ObjectType.ORB_YELLOW -> {
                 playerVy = -18f * gravityDirection
@@ -227,8 +250,9 @@ class GameEngine(
         }
     }
 
-    fun update(dt: Float) {
-        updateParticles(dt)
+    fun update(rawDt: Float) {
+        val dt = rawDt.coerceIn(0.001f, 0.05f)
+        updateVisualEffects(dt)
 
         if (isDead) {
             deathTimer += dt
@@ -241,6 +265,22 @@ class GameEngine(
 
         if (isWon) return
 
+        // Smooth fixed-timestep physics sub-stepping (120 Hz)
+        physicsAccumulator += dt
+        val fixedDt = 1f / 120f
+        var steps = 0
+        while (physicsAccumulator >= fixedDt && steps < 4) {
+            stepPhysics(fixedDt)
+            physicsAccumulator -= fixedDt
+            steps++
+            if (isDead || isWon) break
+        }
+        if (physicsAccumulator > fixedDt * 2) {
+            physicsAccumulator = 0f
+        }
+    }
+
+    private fun stepPhysics(dt: Float) {
         // Update progress percentage
         val progress = ((playerX / (levelLength - 10f)) * 100f).toInt().coerceIn(0, 100)
         if (progress > percentage) {
@@ -259,8 +299,20 @@ class GameEngine(
         // Advance horizontally
         playerX += speedMultiplier * dt
 
+        // Physics based on Game Mode
+        if (gameMode == PlayerGameMode.CUBE) {
+            updateCubePhysics(dt)
+        } else {
+            updateShipPhysics(dt)
+        }
+
+        // Check Object Collisions
+        checkObjectCollisions()
+    }
+
+    private fun updateVisualEffects(dt: Float) {
         // Trail particles
-        if (Random.nextFloat() < 0.6f) {
+        if (!isDead && !isWon && Random.nextFloat() < 0.45f && particles.size < 40) {
             particles.add(
                 Particle(
                     x = playerX,
@@ -275,15 +327,29 @@ class GameEngine(
             )
         }
 
-        // Physics based on Game Mode
-        if (gameMode == PlayerGameMode.CUBE) {
-            updateCubePhysics(dt)
-        } else {
-            updateShipPhysics(dt)
+        // Update particle lifetimes
+        val pIt = particles.iterator()
+        while (pIt.hasNext()) {
+            val p = pIt.next()
+            p.life += dt
+            if (p.life >= p.maxLife) {
+                pIt.remove()
+                continue
+            }
+            p.x += p.vx * dt
+            p.y += p.vy * dt
+            p.alpha = (1f - (p.life / p.maxLife)).coerceIn(0f, 1f)
         }
 
-        // Check Object Collisions
-        checkObjectCollisions()
+        // In-place update of orb ring ripple effects without allocations
+        val rIt = orbRingEffects.iterator()
+        while (rIt.hasNext()) {
+            val ring = rIt.next()
+            ring.r += dt * 4f
+            if (ring.r >= 1.8f) {
+                rIt.remove()
+            }
+        }
     }
 
     private fun updateCubePhysics(dt: Float) {
@@ -350,7 +416,6 @@ class GameEngine(
     }
 
     private fun snapRotation() {
-        // Snap rotation to nearest 90 degrees on landing
         val deg = (playerRotation % 360f + 360f) % 360f
         val snapped = (deg / 90f).roundToInt() * 90f
         playerRotation = snapped
@@ -362,9 +427,9 @@ class GameEngine(
         val pBottom = playerY + 0.05f
         val pTop = playerY + 0.95f
 
-        for (obj in level.objects) {
-            // Only check objects within active window
-            if (obj.x < playerX - 2f || obj.x > playerX + 2f) continue
+        for (obj in sortedObjects) {
+            if (obj.x < playerX - 2f) continue
+            if (obj.x > playerX + 2f) break
 
             val oLeft = obj.x
             val oRight = obj.x + obj.type.width
@@ -373,7 +438,6 @@ class GameEngine(
 
             // Check AABB overlap
             val isOverlap = pRight > oLeft && pLeft < oRight && pTop > oBottom && pBottom < oTop
-
             if (!isOverlap) continue
 
             when {
@@ -393,7 +457,6 @@ class GameEngine(
                 }
 
                 obj.type.isSolid -> {
-                    // Solid block collision
                     handleBlockCollision(obj)
                 }
 
@@ -410,19 +473,21 @@ class GameEngine(
                         collectedCoinIds.add(obj.id)
                         GameAudioEngine.playCoin()
                         // Coin sparkle effect
-                        for (i in 0..12) {
-                            particles.add(
-                                Particle(
-                                    x = obj.x + 0.5f,
-                                    y = obj.y + 0.5f,
-                                    vx = (Random.nextFloat() - 0.5f) * 6f,
-                                    vy = (Random.nextFloat() - 0.5f) * 6f,
-                                    alpha = 1f,
-                                    colorHex = 0xFFFFD700,
-                                    size = 6f,
-                                    maxLife = 0.5f
+                        for (i in 0..8) {
+                            if (particles.size < 40) {
+                                particles.add(
+                                    Particle(
+                                        x = obj.x + 0.5f,
+                                        y = obj.y + 0.5f,
+                                        vx = (Random.nextFloat() - 0.5f) * 6f,
+                                        vy = (Random.nextFloat() - 0.5f) * 6f,
+                                        alpha = 1f,
+                                        colorHex = 0xFFFFD700,
+                                        size = 6f,
+                                        maxLife = 0.45f
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -526,10 +591,11 @@ class GameEngine(
         GameAudioEngine.playDeath()
         onDeath(percentage)
 
-        // Spectacular death explosion particles!
-        for (i in 0..25) {
+        // Spectacular death explosion particles
+        particles.clear()
+        for (i in 0..18) {
             val angle = Random.nextFloat() * 2f * Math.PI.toFloat()
-            val speed = Random.nextFloat() * 12f + 3f
+            val speed = Random.nextFloat() * 10f + 2f
             particles.add(
                 Particle(
                     x = playerX + 0.5f,
@@ -538,37 +604,10 @@ class GameEngine(
                     vy = kotlin.math.sin(angle) * speed,
                     alpha = 1f,
                     colorHex = if (i % 2 == 0) 0xFFFF1744 else 0xFFFFEA00,
-                    size = Random.nextFloat() * 8f + 4f,
-                    maxLife = 0.6f
+                    size = Random.nextFloat() * 6f + 3f,
+                    maxLife = 0.5f
                 )
             )
         }
-    }
-
-    private fun updateParticles(dt: Float) {
-        val pIt = particles.iterator()
-        while (pIt.hasNext()) {
-            val p = pIt.next()
-            p.life += dt
-            if (p.life >= p.maxLife) {
-                pIt.remove()
-                continue
-            }
-            p.x += p.vx * dt
-            p.y += p.vy * dt
-            p.alpha = (1f - (p.life / p.maxLife)).coerceIn(0f, 1f)
-        }
-
-        val rIt = orbRingEffects.iterator()
-        val updatedRings = mutableListOf<Triple<Float, Float, Float>>()
-        while (rIt.hasNext()) {
-            val (rx, ry, r) = rIt.next()
-            val newR = r + dt * 4f
-            if (newR < 1.8f) {
-                updatedRings.add(Triple(rx, ry, newR))
-            }
-        }
-        orbRingEffects.clear()
-        orbRingEffects.addAll(updatedRings)
     }
 }

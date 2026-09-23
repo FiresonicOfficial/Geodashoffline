@@ -13,6 +13,8 @@ object DefaultLevels {
             createBackOnTrack(),
             createPolargeist(),
             createDryOut(),
+            createCantLetGo(),
+            createJumper(),
             createBaseAfterBase(),
             createClubstep()
         )
@@ -22,72 +24,83 @@ object DefaultLevels {
         val objects = mutableListOf<GameObject>()
         var x = 8f
 
-        // Initial warm-up jumps
+        // Section 1: Intro warm-up jumps
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 6f
+        x += 6.5f
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 6f
+        x += 6.5f
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.SPIKE))
+        x += 6.5f
 
-        // Step up platform with Secret Coin 1
-        x += 7f
+        // Section 2: Step-up pyramid platform with Secret Coin 1
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2f, y = 2.5f, type = ObjectType.COIN)) // Coin 1
+        objects.add(GameObject(x = x + 1.5f, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.0f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 4.5f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.75f, y = 3.5f, type = ObjectType.COIN)) // Coin 1 (Apex of Pyramid)
+        objects.add(GameObject(x = x + 6.0f, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 7.5f, y = 0f, type = ObjectType.BLOCK))
+        x += 12f
 
-        // Drop down into yellow pad
-        x += 6f
+        // Section 3: Yellow bounce pads over spike beds
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4f, y = 0f, type = ObjectType.SPIKE)) // Triple spike avoided by pad!
+        objects.add(GameObject(x = x + 1.8f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.8f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.8f, y = 0f, type = ObjectType.SPIKE)) // Clear triple spike!
+        x += 8f
 
-        // Platform bridge over hazard
-        x += 7f
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + i, y = 1.5f, type = ObjectType.BLOCK))
-            objects.add(GameObject(x = x + i, y = 0f, type = ObjectType.SPIKE))
+        // Section 4: Elevated bridge with hanging hazards
+        for (i in 0..5) {
+            objects.add(GameObject(x = x + (i * 1.5f), y = 1.5f, type = ObjectType.BLOCK))
+            objects.add(GameObject(x = x + (i * 1.5f), y = 0f, type = ObjectType.SPIKE_SMALL))
         }
+        x += 12f
 
-        // Secret Coin 2 on high pillar
-        x += 7f
+        // Section 5: High pillar jump with Secret Coin 2
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 3f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2f, y = 4.2f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.5f, y = 3.2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 2.5f, y = 4.5f, type = ObjectType.COIN)) // Coin 2 (Sky high)
+        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE))
+        x += 8.5f
 
-        // Orb jump sequence
-        x += 7f
+        // Section 6: Yellow ring airborne rhythm chain
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
         objects.add(GameObject(x = x + 1.5f, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.8f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 6.5f, y = 0f, type = ObjectType.SPIKE))
+        x += 11f
 
-        // Final gauntlet with Coin 3
-        x += 6f
+        // Section 7: Mid-level platforming and steps
+        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 1.2f, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 2.6f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.0f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 5.2f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 6.6f, y = 0f, type = ObjectType.SPIKE))
+        x += 11f
+
+        // Section 8: Final Sprint with Secret Coin 3
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.BLOCK))
         objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.BLOCK))
         objects.add(GameObject(x = x + 2f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4f, y = 1.2f, type = ObjectType.COIN)) // Coin 3
-        objects.add(GameObject(x = x + 5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.5f, y = 1.6f, type = ObjectType.COIN)) // Coin 3
+        objects.add(GameObject(x = x + 5.5f, y = 0f, type = ObjectType.SPIKE))
+        x += 9f
 
-        // Final steps
-        x += 7f
+        // Final pad leap to triumph
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.2f, y = 0f, type = ObjectType.SPIKE))
         x += 8f
 
         return Level(
             id = "main_stereo_madness",
             name = "Stereo Madness",
-            description = "The classic opening rhythm run. Learn the core jump physics, pads, and coin paths!",
+            description = "The classic opening rhythm run. Master the core jump physics, pads, and secret coin paths!",
             difficulty = Difficulty.EASY,
-            stars = 1,
+            stars = 2,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 0,
@@ -104,57 +117,67 @@ object DefaultLevels {
         val objects = mutableListOf<GameObject>()
         var x = 8f
 
-        // Introduces Pink Pad (gentler jump)
+        // Section 1: Pink pad introduction (gentler hop)
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_PINK))
-        objects.add(GameObject(x = x + 1.5f, y = 0f, type = ObjectType.SPIKE))
-        x += 6f
-
-        // Multi orb jumps
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1.5f, y = 1.7f, type = ObjectType.ORB_PINK))
-        objects.add(GameObject(x = x + 3.5f, y = 1.7f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 1.8f, y = 0f, type = ObjectType.SPIKE))
         x += 7f
 
-        // Platform stair jumps
-        for (i in 0..2) {
-            objects.add(GameObject(x = x + (i * 2.5f), y = i * 1f, type = ObjectType.BLOCK))
-            objects.add(GameObject(x = x + (i * 2.5f) + 1f, y = 0f, type = ObjectType.SPIKE_SMALL))
-        }
-        objects.add(GameObject(x = x + 5f, y = 3.5f, type = ObjectType.COIN)) // Coin 1
+        // Section 2: Alternating yellow and pink orbs
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 1.6f, y = 1.7f, type = ObjectType.ORB_PINK))
+        objects.add(GameObject(x = x + 3.8f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 5.5f, y = 0f, type = ObjectType.SPIKE))
         x += 9f
 
-        // Long jump over pit
+        // Section 3: Tiered staircase with Secret Coin 1
+        for (i in 0..3) {
+            objects.add(GameObject(x = x + (i * 2.2f), y = i * 1f, type = ObjectType.BLOCK))
+            objects.add(GameObject(x = x + (i * 2.2f) + 1f, y = 0f, type = ObjectType.SPIKE_SMALL))
+        }
+        objects.add(GameObject(x = x + 6.6f, y = 4.2f, type = ObjectType.COIN)) // Coin 1
+        x += 12f
+
+        // Section 4: Yellow pad leap over wide hazard
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        for (i in 1..4) {
-            objects.add(GameObject(x = x + i, y = 0f, type = ObjectType.SPIKE))
+        for (i in 1..3) {
+            objects.add(GameObject(x = x + (i * 1.2f), y = 0f, type = ObjectType.SPIKE))
         }
         objects.add(GameObject(x = x + 5.5f, y = 0f, type = ObjectType.BLOCK))
-        x += 7f
+        x += 8.5f
 
-        // Orb rhythm chain
-        objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 2.5f, y = 1.8f, type = ObjectType.ORB_PINK))
-        objects.add(GameObject(x = x + 2.5f, y = 3.2f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4.5f, y = 0f, type = ObjectType.SPIKE))
-        x += 7f
+        // Section 5: Pink orb sync chain with Secret Coin 2
+        objects.add(GameObject(x = x, y = 1.7f, type = ObjectType.ORB_PINK))
+        objects.add(GameObject(x = x + 1.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.8f, y = 2.0f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 3.0f, y = 3.6f, type = ObjectType.COIN)) // Coin 2
+        objects.add(GameObject(x = x + 4.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 5.4f, y = 0f, type = ObjectType.SPIKE))
+        x += 10.5f
 
-        // High tower jump
+        // Section 6: Double spike hurdles and floating blocks
+        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 1.5f, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.0f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 5.5f, y = 1f, type = ObjectType.BLOCK))
+        x += 10f
+
+        // Section 7: Suspended bridge & Final pad tower with Secret Coin 3
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3f, y = 2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 4f, y = 2f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 5f, y = 1.5f, type = ObjectType.COIN)) // Coin 3
-        x += 8f
+        objects.add(GameObject(x = x + 2.2f, y = 2.5f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.4f, y = 2.5f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 4.6f, y = 2.5f, type = ObjectType.SPIKE_SMALL))
+        objects.add(GameObject(x = x + 5.8f, y = 2.0f, type = ObjectType.COIN)) // Coin 3
+        objects.add(GameObject(x = x + 7.0f, y = 0f, type = ObjectType.PAD_PINK))
+        objects.add(GameObject(x = x + 9.0f, y = 0f, type = ObjectType.SPIKE))
+        x += 13f
 
         return Level(
             id = "main_back_on_track",
             name = "Back On Track",
             description = "Get into the groove with pink bounce pads and mid-air ring taps.",
             difficulty = Difficulty.NORMAL,
-            stars = 2,
+            stars = 3,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 1,
@@ -171,48 +194,57 @@ object DefaultLevels {
         val objects = mutableListOf<GameObject>()
         var x = 8f
 
-        // Introduce Gravity Pad and double jump rings
+        // Section 1: Arctic warm-up
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.SPIKE))
-        x += 5f
-
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 2.5f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 6f
-
-        // Gravity flip pad to ceiling platforms!
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_GRAVITY))
-        objects.add(GameObject(x = x + 1f, y = 6f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2f, y = 6f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3f, y = 6f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2f, y = 5f, type = ObjectType.COIN)) // Coin 1 (upside down)
-        objects.add(GameObject(x = x + 4f, y = 6f, type = ObjectType.PAD_GRAVITY)) // Flip back
+        objects.add(GameObject(x = x + 1.2f, y = 0f, type = ObjectType.SPIKE))
         x += 7f
 
-        // Hanging spikes underneath platforms
-        for (i in 0..3) {
-            objects.add(GameObject(x = x + i, y = 3f, type = ObjectType.BLOCK))
-            objects.add(GameObject(x = x + i, y = 2f, type = ObjectType.SPIKE_HANGING))
-            objects.add(GameObject(x = x + i, y = 0f, type = ObjectType.SPIKE_SMALL))
+        // Section 2: Gravity pad launch to ceiling run
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_GRAVITY))
+        for (i in 0..4) {
+            objects.add(GameObject(x = x + 1.5f + (i * 1.5f), y = 6.5f, type = ObjectType.BLOCK))
+        }
+        objects.add(GameObject(x = x + 4.5f, y = 5.2f, type = ObjectType.COIN)) // Coin 1 (Inverted ceiling)
+        objects.add(GameObject(x = x + 8.0f, y = 6.5f, type = ObjectType.PAD_GRAVITY)) // Flip back to floor
+        x += 12f
+
+        // Section 3: Hanging stalactites over floor spikes
+        for (i in 0..4) {
+            objects.add(GameObject(x = x + (i * 1.4f), y = 3.2f, type = ObjectType.BLOCK))
+            objects.add(GameObject(x = x + (i * 1.4f), y = 2.2f, type = ObjectType.SPIKE_HANGING))
+            objects.add(GameObject(x = x + (i * 1.4f), y = 0f, type = ObjectType.SPIKE_SMALL))
         }
         objects.add(GameObject(x = x - 1f, y = 0f, type = ObjectType.PAD_YELLOW))
-        x += 7f
+        x += 11f
 
-        // Blue Orb (gravity flip on tap)
+        // Section 4: Blue gravity orb airborne flip
         objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_BLUE))
-        objects.add(GameObject(x = x + 2f, y = 5.5f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3f, y = 5.5f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.5f, y = 4.2f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 4f, y = 5.5f, type = ObjectType.ORB_BLUE)) // Flip back down
-        x += 7f
+        objects.add(GameObject(x = x + 2.2f, y = 5.8f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.4f, y = 5.8f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 2.8f, y = 4.4f, type = ObjectType.COIN)) // Coin 2
+        objects.add(GameObject(x = x + 4.6f, y = 5.8f, type = ObjectType.ORB_BLUE)) // Flip down
+        x += 10.5f
 
-        // Triple spike with precise jump orb
+        // Section 5: Double spike precision with yellow orb
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 2f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1f, y = 1.7f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 3f, type = ObjectType.COIN)) // Coin 3
+        objects.add(GameObject(x = x + 1.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.4f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 1.2f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        x += 8.5f
+
+        // Section 6: Stepping platforms and precision drop with Secret Coin 3
+        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 1.8f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.6f, y = 3f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.6f, y = 4.4f, type = ObjectType.COIN)) // Coin 3
+        objects.add(GameObject(x = x + 5.4f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 6.6f, y = 0f, type = ObjectType.PAD_PINK))
+        x += 12f
+
+        // Section 7: Final icy sprint
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_DUAL))
+        objects.add(GameObject(x = x + 2f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE))
         x += 8f
 
         return Level(
@@ -220,7 +252,7 @@ object DefaultLevels {
             name = "Polargeist",
             description = "Master gravity pads and mid-air blue gravity orbs in an icy cyber matrix.",
             difficulty = Difficulty.HARD,
-            stars = 3,
+            stars = 4,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 0,
@@ -237,56 +269,60 @@ object DefaultLevels {
         val objects = mutableListOf<GameObject>()
         var x = 8f
 
-        // Speed portal 2x
+        // Section 1: Speed boost
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PORTAL_SPEED_2X))
-        x += 4f
-
-        // Fast jumps
+        x += 5f
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 4f
+        x += 5f
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 4f
+        x += 5f
 
-        // Gravity Invert Portal (Full upside-down gameplay!)
+        // Section 2: Gravity Invert Portal (Full upside-down ceiling world)
         objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_GRAVITY_INVERT))
-        x += 3f
-
-        // Upside down obstacles on ceiling (y = 7f)
-        for (i in 0..6) {
-            objects.add(GameObject(x = x + i, y = 7f, type = ObjectType.BLOCK))
-        }
-        objects.add(GameObject(x = x + 2f, y = 6f, type = ObjectType.SPIKE_HANGING))
-        objects.add(GameObject(x = x + 4f, y = 6f, type = ObjectType.SPIKE_HANGING))
-        objects.add(GameObject(x = x + 3f, y = 4.5f, type = ObjectType.COIN)) // Coin 1
-        x += 8f
-
-        // Flip back down
-        objects.add(GameObject(x = x, y = 4f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.PORTAL_SPEED_1X))
         x += 4f
 
-        // Stepping blocks over spikes
-        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        objects.add(GameObject(x = x + 2.5f, y = 2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.5f, y = 3.2f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        objects.add(GameObject(x = x + 4.5f, y = 1f, type = ObjectType.BLOCK))
-        x += 7f
+        for (i in 0..7) {
+            objects.add(GameObject(x = x + (i * 1.5f), y = 7f, type = ObjectType.BLOCK))
+        }
+        objects.add(GameObject(x = x + 3f, y = 5.8f, type = ObjectType.SPIKE_HANGING))
+        objects.add(GameObject(x = x + 6f, y = 5.8f, type = ObjectType.SPIKE_HANGING))
+        objects.add(GameObject(x = x + 4.5f, y = 4.2f, type = ObjectType.COIN)) // Coin 1 (Inverted ceiling)
+        x += 14f
 
-        // Green Orb (Jump + gravity invert!)
+        // Section 3: Return to normal gravity & speed
+        objects.add(GameObject(x = x, y = 4.5f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
+        objects.add(GameObject(x = x + 1.5f, y = 0f, type = ObjectType.PORTAL_SPEED_1X))
+        x += 6f
+
+        // Section 4: Stepping blocks with dual spikes
+        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 1.8f, y = 0f, type = ObjectType.SPIKE_DUAL))
+        objects.add(GameObject(x = x + 3.2f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.2f, y = 3.5f, type = ObjectType.COIN)) // Coin 2
+        objects.add(GameObject(x = x + 4.6f, y = 0f, type = ObjectType.SPIKE_DUAL))
+        objects.add(GameObject(x = x + 6.0f, y = 1f, type = ObjectType.BLOCK))
+        x += 11f
+
+        // Section 5: Green Orb (jump + gravity flip!)
         objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_GREEN))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 3f, y = 5.5f, type = ObjectType.ORB_GREEN))
-        objects.add(GameObject(x = x + 3f, y = 3.5f, type = ObjectType.COIN)) // Coin 3
-        x += 8f
+        objects.add(GameObject(x = x + 1.5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.8f, y = 5.5f, type = ObjectType.ORB_GREEN))
+        objects.add(GameObject(x = x + 3.8f, y = 3.5f, type = ObjectType.COIN)) // Coin 3
+        x += 10f
+
+        // Section 6: Desert canyon sprint
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
+        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.7f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 5.0f, y = 1f, type = ObjectType.BLOCK))
+        x += 9f
 
         return Level(
             id = "main_dry_out",
             name = "Dry Out",
             description = "Gravity invert portals turn the world upside down. Test your dual-perspective reflexes!",
             difficulty = Difficulty.HARDER,
-            stars = 4,
+            stars = 6,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 2,
@@ -299,60 +335,198 @@ object DefaultLevels {
         )
     }
 
+    private fun createCantLetGo(): Level {
+        val objects = mutableListOf<GameObject>()
+        var x = 8f
+
+        // Section 1: Dark theme intro with precision single-block steps
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
+        x += 6f
+        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK_DARK))
+        objects.add(GameObject(x = x + 1.5f, y = 0f, type = ObjectType.SPIKE))
+        x += 6.5f
+
+        // Section 2: Dark blocks over bottomless spike bed with Secret Coin 1
+        for (i in 0..4) {
+            objects.add(GameObject(x = x + (i * 2.2f), y = 1.5f, type = ObjectType.BLOCK_DARK))
+            objects.add(GameObject(x = x + (i * 2.2f), y = 0f, type = ObjectType.SPIKE))
+        }
+        objects.add(GameObject(x = x + 4.4f, y = 3.0f, type = ObjectType.COIN)) // Coin 1
+        x += 13f
+
+        // Section 3: Alternating hanging spikes and jump pads
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_PINK))
+        objects.add(GameObject(x = x + 2.0f, y = 3.5f, type = ObjectType.SPIKE_HANGING))
+        objects.add(GameObject(x = x + 3.8f, y = 0f, type = ObjectType.PAD_YELLOW))
+        objects.add(GameObject(x = x + 5.5f, y = 0f, type = ObjectType.SPIKE))
+        x += 10.5f
+
+        // Section 4: Upside-down gravity jump sequence with Secret Coin 2
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_GRAVITY))
+        for (i in 0..4) {
+            objects.add(GameObject(x = x + 1.5f + (i * 1.5f), y = 6.5f, type = ObjectType.BLOCK_DARK))
+        }
+        objects.add(GameObject(x = x + 4.5f, y = 5.0f, type = ObjectType.COIN)) // Coin 2
+        objects.add(GameObject(x = x + 7.5f, y = 6.5f, type = ObjectType.PAD_GRAVITY))
+        x += 12f
+
+        // Section 5: Precision orbs over triple spike gap
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 1.5f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 3.0f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.5f, y = 1.8f, type = ObjectType.ORB_PINK))
+        objects.add(GameObject(x = x + 6.0f, y = 0f, type = ObjectType.SPIKE))
+        x += 10.5f
+
+        // Section 6: Dark maze bridge with Secret Coin 3
+        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK_DARK))
+        objects.add(GameObject(x = x + 1.5f, y = 2f, type = ObjectType.BLOCK_DARK))
+        objects.add(GameObject(x = x + 3.0f, y = 3f, type = ObjectType.BLOCK_DARK))
+        objects.add(GameObject(x = x + 3.0f, y = 4.4f, type = ObjectType.COIN)) // Coin 3
+        objects.add(GameObject(x = x + 4.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
+        objects.add(GameObject(x = x + 6.0f, y = 0f, type = ObjectType.PAD_YELLOW))
+        x += 11f
+
+        return Level(
+            id = "main_cant_let_go",
+            name = "Can't Let Go",
+            description = "Dark blocks, tight precision platforms, and unforgiving spike pits in the iconic stage.",
+            difficulty = Difficulty.HARDER,
+            stars = 6,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 1,
+            bgColor = 0xFF14141E,
+            groundColor = 0xFF242433,
+            objects = objects,
+            isUnlocked = false,
+            unlockRequirement = "Reach 50% on Dry Out or earn 10 Stars",
+            createdAt = 4500L
+        )
+    }
+
+    private fun createJumper(): Level {
+        val objects = mutableListOf<GameObject>()
+        var x = 8f
+
+        // Section 1: Fast rhythmic pad hops
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
+        objects.add(GameObject(x = x + 2.5f, y = 2f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 3.7f, y = 2f, type = ObjectType.PAD_PINK))
+        objects.add(GameObject(x = x + 6.0f, y = 0f, type = ObjectType.SPIKE_DUAL))
+        x += 10f
+
+        // Section 2: Aerial pad chain with Secret Coin 1
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
+        objects.add(GameObject(x = x + 2.2f, y = 3f, type = ObjectType.BLOCK))
+        objects.add(GameObject(x = x + 2.2f, y = 4.4f, type = ObjectType.COIN)) // Coin 1
+        objects.add(GameObject(x = x + 3.4f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.8f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        x += 10.5f
+
+        // Section 3: Jungle ceiling hop bridge
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_GRAVITY))
+        for (i in 0..4) {
+            objects.add(GameObject(x = x + 1.5f + (i * 1.5f), y = 6.5f, type = ObjectType.BLOCK))
+            objects.add(GameObject(x = x + 1.5f + (i * 1.5f), y = 5.5f, type = ObjectType.SPIKE_HANGING))
+        }
+        objects.add(GameObject(x = x + 7.5f, y = 6.5f, type = ObjectType.PAD_GRAVITY))
+        x += 12f
+
+        // Section 4: Mid-air triple ring sync with Secret Coin 2
+        objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 1.5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.0f, y = 2.4f, type = ObjectType.ORB_PINK))
+        objects.add(GameObject(x = x + 3.0f, y = 3.8f, type = ObjectType.COIN)) // Coin 2
+        objects.add(GameObject(x = x + 4.5f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 6.0f, y = 0f, type = ObjectType.SPIKE))
+        x += 11f
+
+        // Section 5: Rapid staircase descent with Secret Coin 3
+        for (i in 0..3) {
+            objects.add(GameObject(x = x + (i * 2.2f), y = (3 - i) * 1f, type = ObjectType.BLOCK))
+            objects.add(GameObject(x = x + (i * 2.2f) + 1f, y = 0f, type = ObjectType.SPIKE_SMALL))
+        }
+        objects.add(GameObject(x = x + 2.2f, y = 3.6f, type = ObjectType.COIN)) // Coin 3
+        x += 12f
+
+        // Section 6: High-energy final pad bounce
+        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
+        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 3.7f, y = 0f, type = ObjectType.SPIKE))
+        x += 8f
+
+        return Level(
+            id = "main_jumper",
+            name = "Jumper",
+            description = "High-flying leaps, bouncy pad combos, and synchronized air ring taps!",
+            difficulty = Difficulty.INSANE,
+            stars = 8,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 3,
+            bgColor = 0xFF0A2618,
+            groundColor = 0xFF13422B,
+            objects = objects,
+            isUnlocked = false,
+            unlockRequirement = "Reach 50% on Can't Let Go or earn 14 Stars",
+            createdAt = 4800L
+        )
+    }
+
     private fun createBaseAfterBase(): Level {
         val objects = mutableListOf<GameObject>()
         var x = 8f
 
-        // Cube section warmup
+        // Section 1: Cube section warmup
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1.5f, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 6f
+        objects.add(GameObject(x = x + 1.8f, y = 1.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
+        x += 8f
 
-        // Enter Ship Mode!
+        // Section 2: Enter Ship Mode!
         objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.PORTAL_SHIP))
-        x += 4f
+        x += 5f
 
-        // Ship obstacles: pillars with gaps to fly through
-        for (col in 0..3) {
-            val gapY = if (col % 2 == 0) 3.5f else 2.0f
-            // Ceiling pillar
+        // Section 3: Ship flight cavern with undulating heights and Secret Coin 1 & 2
+        for (col in 0..6) {
+            val gapY = if (col % 2 == 0) 3.5f else 2.2f
             for (y in 5..7) {
                 if (y.toFloat() != gapY && y.toFloat() != gapY + 1f) {
                     objects.add(GameObject(x = x + (col * 5f), y = y.toFloat(), type = ObjectType.BLOCK_DARK))
                 }
             }
-            // Floor pillar
             for (y in 0..1) {
                 objects.add(GameObject(x = x + (col * 5f), y = y.toFloat(), type = ObjectType.SPIKE_SMALL))
             }
         }
-        objects.add(GameObject(x = x + 8f, y = 3.5f, type = ObjectType.COIN)) // Coin 1 in ship gap
-        x += 22f
+        objects.add(GameObject(x = x + 10f, y = 3.5f, type = ObjectType.COIN)) // Coin 1 (Center cavern)
+        objects.add(GameObject(x = x + 22f, y = 2.4f, type = ObjectType.COIN)) // Coin 2 (Low tunnel)
+        x += 35f
 
-        // Exit back to Cube Mode
+        // Section 4: Exit Ship back to Cube Mode
         objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.PORTAL_CUBE))
-        x += 4f
+        x += 5f
 
-        // Rapid pad chain with Coin 2 & 3
+        // Section 5: Rapid pad chain with Secret Coin 3
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 3.5f, type = ObjectType.PAD_PINK))
-        objects.add(GameObject(x = x + 2.5f, y = 5f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 4f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 5f, y = 0f, type = ObjectType.SPIKE))
-        x += 8f
+        objects.add(GameObject(x = x + 2.8f, y = 3.2f, type = ObjectType.PAD_PINK))
+        objects.add(GameObject(x = x + 2.8f, y = 4.8f, type = ObjectType.COIN)) // Coin 3
+        objects.add(GameObject(x = x + 4.5f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 5.7f, y = 0f, type = ObjectType.SPIKE))
+        x += 11f
 
+        // Section 6: Final dash to victory
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 2.5f, type = ObjectType.COIN)) // Coin 3
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.4f, y = 0f, type = ObjectType.SPIKE))
         x += 8f
 
         return Level(
             id = "main_base_after_base",
             name = "Base After Base",
-            description = "Hold to fly in the Ship rocket section, then land back as a cube for rapid jump chains.",
+            description = "Fly through the extended ship flight cavern, then land back as a cube for rapid jump chains.",
             difficulty = Difficulty.INSANE,
-            stars = 5,
+            stars = 8,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 3,
@@ -360,7 +534,7 @@ object DefaultLevels {
             groundColor = 0xFF4A1043,
             objects = objects,
             isUnlocked = false,
-            unlockRequirement = "Reach 50% on Dry Out or earn 10 Stars",
+            unlockRequirement = "Reach 50% on Jumper or earn 18 Stars",
             createdAt = 5000L
         )
     }
@@ -369,56 +543,54 @@ object DefaultLevels {
         val objects = mutableListOf<GameObject>()
         var x = 8f
 
-        // Fast pace 2x speed demon entry
+        // Section 1: 2x Speed Demon Entry
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PORTAL_SPEED_2X))
-        x += 3f
+        x += 4f
 
-        // Tight spikes
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 2f, y = 0f, type = ObjectType.SPIKE)) // Triple spike at 2x!
-        x += 5f
-
-        // Precise orb sequence
-        objects.add(GameObject(x = x, y = 1.6f, type = ObjectType.ORB_PINK))
-        objects.add(GameObject(x = x + 1.8f, y = 2.2f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 3.5f, y = 1.8f, type = ObjectType.ORB_BLUE)) // Flip to ceiling!
-        x += 6f
-
-        // Upside down demon teeth
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + i, y = 7f, type = ObjectType.BLOCK_DARK))
-            objects.add(GameObject(x = x + i, y = 6f, type = ObjectType.SPIKE_HANGING))
-            objects.add(GameObject(x = x + i, y = 0f, type = ObjectType.SPIKE))
-        }
-        objects.add(GameObject(x = x + 2f, y = 3f, type = ObjectType.COIN)) // Coin 1
+        objects.add(GameObject(x = x + 1.2f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 2.4f, y = 0f, type = ObjectType.SPIKE)) // Triple spike at 2x!
         x += 7f
 
-        // Ship Demon Flight
-        objects.add(GameObject(x = x, y = 3f, type = ObjectType.PORTAL_SHIP))
-        x += 4f
+        // Section 2: Precise airborne orb combos with Secret Coin 1
+        objects.add(GameObject(x = x, y = 1.6f, type = ObjectType.ORB_PINK))
+        objects.add(GameObject(x = x + 1.8f, y = 2.4f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 1.8f, y = 3.8f, type = ObjectType.COIN)) // Coin 1
+        objects.add(GameObject(x = x + 2.8f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.0f, y = 1.8f, type = ObjectType.ORB_BLUE)) // Flip to ceiling!
+        x += 9f
 
-        // Demon jaws flight: narrow corridors
-        for (step in 0..4) {
-            val yOffset = if (step % 2 == 0) 1f else 3f
-            objects.add(GameObject(x = x + (step * 4f), y = yOffset, type = ObjectType.SPIKE))
-            objects.add(GameObject(x = x + (step * 4f), y = yOffset + 3.5f, type = ObjectType.SPIKE_HANGING))
+        // Section 3: Upside-down demon teeth
+        for (i in 0..5) {
+            objects.add(GameObject(x = x + (i * 1.5f), y = 7f, type = ObjectType.BLOCK_DARK))
+            objects.add(GameObject(x = x + (i * 1.5f), y = 6f, type = ObjectType.SPIKE_HANGING))
+            objects.add(GameObject(x = x + (i * 1.5f), y = 0f, type = ObjectType.SPIKE))
         }
-        objects.add(GameObject(x = x + 6f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 14f, y = 2.2f, type = ObjectType.COIN)) // Coin 3
-        x += 22f
+        x += 12f
 
-        // Final Cube sprint
+        // Section 4: Ship Demon Flight through narrow corridors
+        objects.add(GameObject(x = x, y = 3f, type = ObjectType.PORTAL_SHIP))
+        x += 5f
+
+        for (step in 0..6) {
+            val yOffset = if (step % 2 == 0) 1.2f else 3.2f
+            objects.add(GameObject(x = x + (step * 4.5f), y = yOffset, type = ObjectType.SPIKE))
+            objects.add(GameObject(x = x + (step * 4.5f), y = yOffset + 3.2f, type = ObjectType.SPIKE_HANGING))
+        }
+        objects.add(GameObject(x = x + 9f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
+        objects.add(GameObject(x = x + 20f, y = 2.2f, type = ObjectType.COIN)) // Coin 3
+        x += 32f
+
+        // Section 5: Final Cube Sprint
         objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        objects.add(GameObject(x = x + 1f, y = 2f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        x += 4f
+        objects.add(GameObject(x = x + 1.5f, y = 2f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
+        x += 5f
 
         objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 2.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4f, y = 0f, type = ObjectType.SPIKE))
-        x += 8f
+        objects.add(GameObject(x = x + 2.4f, y = 2.8f, type = ObjectType.ORB_YELLOW))
+        objects.add(GameObject(x = x + 3.6f, y = 0f, type = ObjectType.SPIKE))
+        objects.add(GameObject(x = x + 4.8f, y = 0f, type = ObjectType.SPIKE))
+        x += 9f
 
         return Level(
             id = "main_clubstep",
@@ -429,11 +601,11 @@ object DefaultLevels {
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 2,
-            bgColor = 0xFF1A0505,
-            groundColor = 0xFF380909,
+            bgColor = 0xFF1F0303,
+            groundColor = 0xFF3D0606,
             objects = objects,
             isUnlocked = false,
-            unlockRequirement = "Complete Base After Base or earn 14 Stars",
+            unlockRequirement = "Complete Base After Base or earn 24 Stars",
             createdAt = 6000L
         )
     }
