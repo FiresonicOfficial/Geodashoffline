@@ -1,0 +1,6 @@
+{
+  "name": "GeoDash Offline",
+  "description": "Offline Geometry Dash clone featuring iconic campaign levels, practice mode, full custom level editor, and star rating system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
