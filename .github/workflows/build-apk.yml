@@ -20,8 +20,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Grant execute permissions
+        run: |
+          chmod +x gradlew
+          chmod +x .github/scripts/accept_licenses.sh
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -29,30 +31,8 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept All Android SDK Licenses
-        run: |
-          mkdir -p "$ANDROID_HOME/licenses" || true
-          mkdir -p "$ANDROID_SDK_ROOT/licenses" || true
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\ne6b7c2ab7fa2298e15165e1118370ff9c1f82663\n89388d6e79037b964a1f1ec640e3f73d8684755a\n27229f7d25e1a2f6ca3c023fe21f379f8ef4e112\n" > "$ANDROID_HOME/licenses/android-sdk-license"
-          cp "$ANDROID_HOME/licenses/android-sdk-license" "$ANDROID_SDK_ROOT/licenses/android-sdk-license" || true
-          printf "84831b9409646a918e30573bab4c9c91346d8abd\n7993a44a35a40a15b1d68c814441464e137b2fc8\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          cp "$ANDROID_HOME/licenses/android-sdk-preview-license" "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license" || true
-          printf "601085b94cd77f6b54b86eebd637d4c2a17b4a84\n" > "$ANDROID_HOME/licenses/android-googletv-license"
-          cp "$ANDROID_HOME/licenses/android-googletv-license" "$ANDROID_SDK_ROOT/licenses/android-googletv-license" || true
-          printf "859f317696f67ef3d7f30a50a5560e7834b43903\n" > "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license"
-          cp "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license" "$ANDROID_SDK_ROOT/licenses/android-sdk-arm-dbt-license" || true
-          printf "33b6a2b64f07f11d23a55955ab86103a4930c657\n" > "$ANDROID_HOME/licenses/google-gdk-license"
-          cp "$ANDROID_HOME/licenses/google-gdk-license" "$ANDROID_SDK_ROOT/licenses/google-gdk-license" || true
-          printf "e9acab5b5fbb560a72cfa4f46c0b907b9468f2d0\n" > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
-          cp "$ANDROID_HOME/licenses/mips-android-sysimage-license" "$ANDROID_SDK_ROOT/licenses/mips-android-sysimage-license" || true
-
-      - name: Install Android SDK Platform 36
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "platform-tools" || true
+      - name: Setup Android SDK Licenses
+        run: bash .github/scripts/accept_licenses.sh
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -85,7 +65,7 @@ jobs:
           fi
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace -Pandroid.builder.sdkDownload=true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
