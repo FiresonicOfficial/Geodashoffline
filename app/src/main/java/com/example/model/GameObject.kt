@@ -7,6 +7,7 @@ enum class ObjectCategory(val displayName: String) {
     ORBS("Orbs"),
     PORTALS("Portals"),
     TRIGGERS("Triggers"),
+    DECORATION("Decoration"),
     SPECIAL("Special")
 }
 
@@ -82,6 +83,20 @@ enum class ObjectType(
     TRIGGER_GROUND_GREEN("GND Green", ObjectCategory.TRIGGERS, 0.8f, 1.2f, 0xFF1B5E20, isInteractive = true),
     TRIGGER_GROUND_DARK("GND Dark", ObjectCategory.TRIGGERS, 0.8f, 1.2f, 0xFF1B263B, isInteractive = true),
     TRIGGER_GROUND_GOLD("GND Gold", ObjectCategory.TRIGGERS, 0.8f, 1.2f, 0xFFFFD600, isInteractive = true),
+
+    // Pure Hitbox-Free Decorations (Visual only, no collision, no lethal, no interactive)
+    DECO_CHAIN("Hanging Chain", ObjectCategory.DECORATION, 0.4f, 2.0f, 0xFF78909C),
+    DECO_PILLAR("Deco Pillar", ObjectCategory.DECORATION, 1.0f, 3.0f, 0xFF37474F),
+    DECO_NEON_ARROW("Neon Arrow", ObjectCategory.DECORATION, 1.2f, 0.8f, 0xFF00E5FF),
+    DECO_ARROW_UP("Arrow Up", ObjectCategory.DECORATION, 0.8f, 1.2f, 0xFF00E676),
+    DECO_ARROW_DOWN("Arrow Down", ObjectCategory.DECORATION, 0.8f, 1.2f, 0xFFFF1744),
+    DECO_WARNING_SIGN("Warning Sign", ObjectCategory.DECORATION, 1.0f, 1.0f, 0xFFFFD600),
+    DECO_STAR("Glow Star", ObjectCategory.DECORATION, 0.8f, 0.8f, 0xFFFFF176),
+    DECO_PULSE_RING("Pulse Deco", ObjectCategory.DECORATION, 1.2f, 1.2f, 0xFFE040FB),
+    DECO_TECH_CIRCUIT("Tech Circuit", ObjectCategory.DECORATION, 1.5f, 1.5f, 0xFF2979FF),
+    DECO_BUSH("Neon Foliage", ObjectCategory.DECORATION, 1.2f, 0.8f, 0xFF00E676),
+    DECO_MONSTER_EYE("Monster Eye", ObjectCategory.DECORATION, 1.0f, 1.0f, 0xFFFF1744),
+    DECO_CRYSTAL("Crystal Cluster", ObjectCategory.DECORATION, 0.9f, 1.4f, 0xFFD500F9),
 
     // Collectibles & Special
     COIN("Secret Coin", ObjectCategory.SPECIAL, 1f, 1f, 0xFFFFD700, isInteractive = true)

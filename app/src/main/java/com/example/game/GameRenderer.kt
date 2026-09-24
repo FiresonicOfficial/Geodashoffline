@@ -45,7 +45,9 @@ object GameRenderer {
         for (obj in engine.sortedObjects) {
             if (obj.x > maxX) break
             if (obj.x + obj.type.width < minX) continue
-            drawGameObject(scope, obj, cameraX, groundScreenY, tileSize, sawAngle)
+            // Triggers are completely invisible during gameplay (only visible in editor)
+            if (obj.type.category == com.example.model.ObjectCategory.TRIGGERS) continue
+            drawGameObject(scope, obj, cameraX, groundScreenY, tileSize, sawAngle, isEditor = false)
         }
 
         // 4. Draw practice mode checkpoints
@@ -181,8 +183,14 @@ object GameRenderer {
         cameraX: Float,
         groundScreenY: Float,
         tileSize: Float,
-        sawAngle: Float = 0f
+        sawAngle: Float = 0f,
+        isEditor: Boolean = false
     ) {
+        // Triggers are only visible in the editor, completely invisible during gameplay!
+        if (!isEditor && obj.type.category == com.example.model.ObjectCategory.TRIGGERS) {
+            return
+        }
+
         val screenX = (obj.x - cameraX) * tileSize
         val screenY = groundScreenY - ((obj.y + obj.type.height) * tileSize)
         val objW = obj.type.width * tileSize
@@ -526,6 +534,205 @@ object GameRenderer {
                     color = Color.White,
                     radius = coinRadius * 0.35f,
                     center = center
+                )
+            }
+
+            // Decorative hitbox-free objects
+            ObjectType.DECO_CHAIN -> {
+                val chainW = (objW * 0.65f).coerceAtLeast(6f)
+                val linkH = tileSize * 0.45f
+                val chainX = screenX + (objW - chainW) * 0.5f
+                var curY = screenY
+                while (curY < screenY + objH) {
+                    val curH = linkH.coerceAtMost(screenY + objH - curY)
+                    scope.drawRoundRect(
+                        color = Color(0xFF78909C),
+                        topLeft = Offset(chainX, curY),
+                        size = Size(chainW, curH),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f),
+                        style = Stroke(width = 2.5f)
+                    )
+                    scope.drawCircle(
+                        color = Color(0xFFCFD8DC),
+                        radius = 2f,
+                        center = Offset(chainX + chainW * 0.5f, curY + curH * 0.5f)
+                    )
+                    curY += linkH * 0.72f
+                }
+            }
+
+            ObjectType.DECO_PILLAR -> {
+                val pillarColor = Color(0xFF263238).copy(alpha = 0.55f)
+                val highlightColor = Color(0xFF546E7A).copy(alpha = 0.45f)
+                // Capital top & base
+                scope.drawRect(color = highlightColor, topLeft = Offset(screenX, screenY), size = Size(objW, 8f))
+                scope.drawRect(color = highlightColor, topLeft = Offset(screenX, screenY + objH - 8f), size = Size(objW, 8f))
+                // Shaft
+                scope.drawRect(color = pillarColor, topLeft = Offset(screenX + 3f, screenY + 8f), size = Size(objW - 6f, objH - 16f))
+                // Fluting lines
+                val fluteStep = (objW - 6f) / 3f
+                for (i in 1..2) {
+                    scope.drawLine(
+                        color = highlightColor,
+                        start = Offset(screenX + 3f + i * fluteStep, screenY + 8f),
+                        end = Offset(screenX + 3f + i * fluteStep, screenY + objH - 8f),
+                        strokeWidth = 1.5f
+                    )
+                }
+            }
+
+            ObjectType.DECO_NEON_ARROW -> {
+                val arrowColor = Color(obj.customColorHex ?: 0xFF00E5FF)
+                val centerY = screenY + objH * 0.5f
+                for (offset in listOf(0f, objW * 0.38f)) {
+                    val startX = screenX + offset + objW * 0.12f
+                    val arrowPath = Path().apply {
+                        moveTo(startX, screenY + objH * 0.15f)
+                        lineTo(startX + objW * 0.35f, centerY)
+                        lineTo(startX, screenY + objH * 0.85f)
+                    }
+                    scope.drawPath(arrowPath, color = arrowColor.copy(alpha = 0.25f), style = Stroke(width = 6f))
+                    scope.drawPath(arrowPath, color = arrowColor, style = Stroke(width = 2.5f))
+                    scope.drawPath(arrowPath, color = Color.White, style = Stroke(width = 1f))
+                }
+            }
+
+            ObjectType.DECO_ARROW_UP, ObjectType.DECO_ARROW_DOWN -> {
+                val isUp = obj.type == ObjectType.DECO_ARROW_UP
+                val arrowCol = Color(obj.customColorHex ?: if (isUp) 0xFF00E676 else 0xFFFF1744)
+                val centerX = screenX + objW * 0.5f
+                val arrowPath = Path().apply {
+                    if (isUp) {
+                        moveTo(screenX + objW * 0.15f, screenY + objH * 0.78f)
+                        lineTo(centerX, screenY + objH * 0.22f)
+                        lineTo(screenX + objW * 0.85f, screenY + objH * 0.78f)
+                    } else {
+                        moveTo(screenX + objW * 0.15f, screenY + objH * 0.22f)
+                        lineTo(centerX, screenY + objH * 0.78f)
+                        lineTo(screenX + objW * 0.85f, screenY + objH * 0.22f)
+                    }
+                }
+                scope.drawPath(arrowPath, color = arrowCol.copy(alpha = 0.3f), style = Stroke(width = 6f))
+                scope.drawPath(arrowPath, color = arrowCol, style = Stroke(width = 2.8f))
+                scope.drawPath(arrowPath, color = Color.White, style = Stroke(width = 1.2f))
+            }
+
+            ObjectType.DECO_WARNING_SIGN -> {
+                val signPath = Path().apply {
+                    moveTo(screenX + objW * 0.5f, screenY + objH * 0.08f)
+                    lineTo(screenX + objW * 0.94f, screenY + objH * 0.92f)
+                    lineTo(screenX + objW * 0.06f, screenY + objH * 0.92f)
+                    close()
+                }
+                scope.drawPath(signPath, color = Color(0xFFFFD600).copy(alpha = 0.25f))
+                scope.drawPath(signPath, color = Color(0xFFFFD600), style = Stroke(width = 2.5f))
+                val midX = screenX + objW * 0.5f
+                scope.drawLine(
+                    color = Color(0xFFFFD600),
+                    start = Offset(midX, screenY + objH * 0.35f),
+                    end = Offset(midX, screenY + objH * 0.65f),
+                    strokeWidth = 3f
+                )
+                scope.drawCircle(
+                    color = Color(0xFFFFD600),
+                    radius = 2.5f,
+                    center = Offset(midX, screenY + objH * 0.78f)
+                )
+            }
+
+            ObjectType.DECO_STAR -> {
+                val starCenter = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
+                val r = objW * 0.45f
+                val starPath = Path().apply {
+                    moveTo(starCenter.x, starCenter.y - r)
+                    quadraticBezierTo(starCenter.x, starCenter.y, starCenter.x + r, starCenter.y)
+                    quadraticBezierTo(starCenter.x, starCenter.y, starCenter.x, starCenter.y + r)
+                    quadraticBezierTo(starCenter.x, starCenter.y, starCenter.x - r, starCenter.y)
+                    quadraticBezierTo(starCenter.x, starCenter.y, starCenter.x, starCenter.y - r)
+                    close()
+                }
+                scope.drawCircle(color = Color(0xFFFFF59D).copy(alpha = 0.25f), radius = r * 1.3f, center = starCenter)
+                scope.drawPath(starPath, color = Color(0xFFFFF9C4))
+                scope.drawCircle(color = Color.White, radius = r * 0.28f, center = starCenter)
+            }
+
+            ObjectType.DECO_PULSE_RING -> {
+                val ringCenter = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
+                val maxR = objW * 0.45f
+                scope.drawCircle(color = Color(0xFFE040FB).copy(alpha = 0.18f), radius = maxR, center = ringCenter)
+                scope.drawCircle(color = Color(0xFFE040FB), radius = maxR, center = ringCenter, style = Stroke(width = 2.2f))
+                scope.drawCircle(color = Color(0xFF00E5FF), radius = maxR * 0.6f, center = ringCenter, style = Stroke(width = 1.5f))
+                scope.drawCircle(color = Color.White, radius = maxR * 0.22f, center = ringCenter)
+            }
+
+            ObjectType.DECO_TECH_CIRCUIT -> {
+                val circuitColor = Color(0xFF2979FF).copy(alpha = 0.55f)
+                val nodeColor = Color(0xFF00E5FF)
+                scope.drawLine(color = circuitColor, start = Offset(screenX, screenY + objH * 0.3f), end = Offset(screenX + objW * 0.5f, screenY + objH * 0.3f), strokeWidth = 2f)
+                scope.drawLine(color = circuitColor, start = Offset(screenX + objW * 0.5f, screenY + objH * 0.3f), end = Offset(screenX + objW * 0.8f, screenY + objH * 0.7f), strokeWidth = 2f)
+                scope.drawLine(color = circuitColor, start = Offset(screenX + objW * 0.8f, screenY + objH * 0.7f), end = Offset(screenX + objW, screenY + objH * 0.7f), strokeWidth = 2f)
+                scope.drawCircle(color = nodeColor, radius = 3.5f, center = Offset(screenX + objW * 0.5f, screenY + objH * 0.3f))
+                scope.drawCircle(color = nodeColor, radius = 3.5f, center = Offset(screenX + objW * 0.8f, screenY + objH * 0.7f))
+            }
+
+            ObjectType.DECO_BUSH -> {
+                val bushColor = Color(0xFF00E676).copy(alpha = 0.4f)
+                val outlineColor = Color(0xFF69F0AE)
+                val tufts = 3
+                val tuftW = objW / tufts
+                for (i in 0 until tufts) {
+                    val cx = screenX + (i + 0.5f) * tuftW
+                    val cy = screenY + objH * 0.5f
+                    val r = tuftW * 0.55f
+                    scope.drawCircle(color = bushColor, radius = r, center = Offset(cx, cy))
+                    scope.drawCircle(color = outlineColor, radius = r, center = Offset(cx, cy), style = Stroke(width = 1.5f))
+                }
+            }
+
+            ObjectType.DECO_MONSTER_EYE -> {
+                val eyeCenter = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
+                val eyeW = objW * 0.46f
+                val eyeH = objH * 0.32f
+                scope.drawOval(
+                    color = Color(0xFF140505),
+                    topLeft = Offset(eyeCenter.x - eyeW, eyeCenter.y - eyeH),
+                    size = Size(eyeW * 2, eyeH * 2)
+                )
+                scope.drawOval(
+                    color = Color(0xFFFF1744),
+                    topLeft = Offset(eyeCenter.x - eyeW * 0.75f, eyeCenter.y - eyeH * 0.8f),
+                    size = Size(eyeW * 1.5f, eyeH * 1.6f)
+                )
+                scope.drawOval(
+                    color = Color.Black,
+                    topLeft = Offset(eyeCenter.x - 2.5f, eyeCenter.y - eyeH * 0.75f),
+                    size = Size(5f, eyeH * 1.5f)
+                )
+                scope.drawCircle(
+                    color = Color.White,
+                    radius = 2.2f,
+                    center = Offset(eyeCenter.x - eyeW * 0.25f, eyeCenter.y - eyeH * 0.3f)
+                )
+            }
+
+            ObjectType.DECO_CRYSTAL -> {
+                val crystalColor = Color(0xFFD500F9).copy(alpha = 0.6f)
+                val crystalOutline = Color(0xFFEA80FC)
+                val crystalPath = Path().apply {
+                    moveTo(screenX + objW * 0.5f, screenY)
+                    lineTo(screenX + objW * 0.85f, screenY + objH * 0.6f)
+                    lineTo(screenX + objW * 0.65f, screenY + objH)
+                    lineTo(screenX + objW * 0.35f, screenY + objH)
+                    lineTo(screenX + objW * 0.15f, screenY + objH * 0.6f)
+                    close()
+                }
+                scope.drawPath(crystalPath, color = crystalColor)
+                scope.drawPath(crystalPath, color = crystalOutline, style = Stroke(width = 2f))
+                scope.drawLine(
+                    color = Color.White.copy(alpha = 0.7f),
+                    start = Offset(screenX + objW * 0.5f, screenY),
+                    end = Offset(screenX + objW * 0.5f, screenY + objH * 0.75f),
+                    strokeWidth = 1.5f
                 )
             }
         }

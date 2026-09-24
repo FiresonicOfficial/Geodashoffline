@@ -322,7 +322,8 @@ fun EditorScreen(
                             cameraX = editorState.scrollX,
                             groundScreenY = groundScreenY,
                             tileSize = tileSize,
-                            sawAngle = editorSawAngle
+                            sawAngle = editorSawAngle,
+                            isEditor = true
                         )
                     }
                 }
@@ -537,6 +538,7 @@ fun EditorScreen(
                             ObjectCategory.ORBS -> "🔮 Orbs"
                             ObjectCategory.PORTALS -> "🌀 Portals"
                             ObjectCategory.TRIGGERS -> "⚡ Triggers"
+                            ObjectCategory.DECORATION -> "✨ Deco"
                             ObjectCategory.SPECIAL -> "⭐ Special"
                         }
                         Tab(
@@ -602,7 +604,8 @@ fun EditorScreen(
                                         cameraX = 0f,
                                         groundScreenY = groundOffset,
                                         tileSize = scale,
-                                        sawAngle = editorSawAngle
+                                        sawAngle = editorSawAngle,
+                                        isEditor = true
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(3.dp))
