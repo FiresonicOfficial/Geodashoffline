@@ -10,7 +10,9 @@ import kotlin.random.Random
 
 enum class PlayerGameMode {
     CUBE,
-    SHIP
+    SHIP,
+    WAVE,
+    UFO
 }
 
 data class Checkpoint(
@@ -177,17 +179,53 @@ class GameEngine(
         if (isDead) return
         isHolding = true
 
-        if (gameMode == PlayerGameMode.CUBE) {
-            // Check for tap inside jump orb radius
-            val tappedOrb = checkOrbTrigger()
-            if (tappedOrb != null) {
-                activateOrb(tappedOrb)
-                return
-            }
+        when (gameMode) {
+            PlayerGameMode.CUBE -> {
+                val tappedOrb = checkOrbTrigger()
+                if (tappedOrb != null) {
+                    activateOrb(tappedOrb)
+                    return
+                }
 
-            // Normal jump if on ground
-            if (isOnGround) {
-                performJump()
+                if (isOnGround) {
+                    performJump()
+                }
+            }
+            PlayerGameMode.UFO -> {
+                val tappedOrb = checkOrbTrigger()
+                if (tappedOrb != null) {
+                    activateOrb(tappedOrb)
+                    return
+                }
+                performUfoHop()
+            }
+            PlayerGameMode.SHIP, PlayerGameMode.WAVE -> {
+                // Holding state handles vertical movement
+            }
+        }
+    }
+
+    private fun performUfoHop(force: Float = 16.5f) {
+        playerVy = -force * gravityDirection
+        isOnGround = false
+        jumpsCount++
+        GameAudioEngine.playJump()
+
+        // Thruster sparks at UFO base
+        for (i in 0..4) {
+            if (particles.size < 40) {
+                particles.add(
+                    Particle(
+                        x = playerX + 0.5f + (Random.nextFloat() - 0.5f) * 0.4f,
+                        y = if (gravityDirection > 0) playerY else playerY + 0.8f,
+                        vx = (Random.nextFloat() - 0.5f) * 3f,
+                        vy = (Random.nextFloat() * 4f + 2f) * gravityDirection,
+                        alpha = 1f,
+                        colorHex = 0xFFFF9100,
+                        size = 4f,
+                        maxLife = 0.22f
+                    )
+                )
             }
         }
     }
@@ -358,10 +396,11 @@ class GameEngine(
         }
 
         // Physics based on Game Mode
-        if (gameMode == PlayerGameMode.CUBE) {
-            updateCubePhysics(dt)
-        } else {
-            updateShipPhysics(dt)
+        when (gameMode) {
+            PlayerGameMode.CUBE -> updateCubePhysics(dt)
+            PlayerGameMode.SHIP -> updateShipPhysics(dt)
+            PlayerGameMode.WAVE -> updateWavePhysics(dt)
+            PlayerGameMode.UFO -> updateUfoPhysics(dt)
         }
 
         // Check Object Collisions
@@ -403,7 +442,12 @@ class GameEngine(
                     vx = -2f,
                     vy = (Random.nextFloat() - 0.5f) * 1.5f,
                     alpha = 0.8f,
-                    colorHex = if (gameMode == PlayerGameMode.SHIP) 0xFFFF4081 else 0xFF00E5FF,
+                    colorHex = when (gameMode) {
+                        PlayerGameMode.SHIP -> 0xFFFF4081
+                        PlayerGameMode.WAVE -> 0xFF00E5FF
+                        PlayerGameMode.UFO -> 0xFFFF9100
+                        PlayerGameMode.CUBE -> 0xFFFFE600
+                    },
                     size = 5f,
                     maxLife = 0.3f
                 )
@@ -497,6 +541,89 @@ class GameEngine(
         if (playerY > ceilingY - 1f) {
             playerY = ceilingY - 1f
             killPlayer()
+        }
+    }
+
+    private fun updateWavePhysics(dt: Float) {
+        // Authentic Geometry Dash Wave:
+        // Constant 45-degree angle.
+        // Holding -> flies UP at 45 degrees
+        // Releasing -> flies DOWN at 45 degrees
+        val vertSpeed = speedMultiplier
+        if (isHolding) {
+            playerVy = -vertSpeed * gravityDirection
+            playerRotation = -45f * gravityDirection
+        } else {
+            playerVy = vertSpeed * gravityDirection
+            playerRotation = 45f * gravityDirection
+        }
+        playerY -= playerVy * dt
+
+        // Touching floor or ceiling kills the Wave!
+        if (playerY <= floorY) {
+            playerY = floorY
+            killPlayer()
+        }
+        if (playerY >= ceilingY - 1f) {
+            playerY = ceilingY - 1f
+            killPlayer()
+        }
+
+        // Wave trail spark particles
+        if (particles.size < 40 && Random.nextFloat() < 0.65f) {
+            particles.add(
+                Particle(
+                    x = playerX + 0.2f,
+                    y = playerY + 0.5f,
+                    vx = -speedMultiplier * 0.35f,
+                    vy = (Random.nextFloat() - 0.5f) * 1.5f,
+                    alpha = 0.9f,
+                    colorHex = 0xFF00E5FF,
+                    size = 3.5f,
+                    maxLife = 0.2f
+                )
+            )
+        }
+    }
+
+    private fun updateUfoPhysics(dt: Float) {
+        val ufoGravity = 46f * gravityDirection
+        playerVy += ufoGravity * dt
+        playerVy = playerVy.coerceIn(-17f, 17f)
+        playerY -= playerVy * dt
+
+        // Subtle pitch tilt while ascending or falling
+        val targetRot = (-playerVy * 1.8f * gravityDirection).coerceIn(-25f, 25f)
+        playerRotation += (targetRot - playerRotation) * 0.25f
+
+        // Ceiling is lethal to UFO
+        if (gravityDirection > 0 && playerY >= ceilingY - 1f) {
+            playerY = ceilingY - 1f
+            killPlayer()
+        } else if (gravityDirection < 0 && playerY <= floorY) {
+            playerY = floorY
+            killPlayer()
+        }
+
+        // Floor landing / bouncing
+        if (gravityDirection > 0) {
+            if (playerY <= floorY) {
+                playerY = floorY
+                playerVy = 0f
+                isOnGround = true
+                snapRotation()
+            } else {
+                isOnGround = false
+            }
+        } else {
+            if (playerY >= ceilingY - 1f) {
+                playerY = ceilingY - 1f
+                playerVy = 0f
+                isOnGround = true
+                snapRotation()
+            } else {
+                isOnGround = false
+            }
         }
     }
 
@@ -648,6 +775,12 @@ class GameEngine(
     }
 
     private fun handleBlockCollision(obj: GameObject) {
+        if (gameMode == PlayerGameMode.WAVE) {
+            // Wave crashes instantly on any solid block
+            killPlayer()
+            return
+        }
+
         val oTop = obj.y + obj.type.height
         val oBottom = obj.y
         val oLeft = obj.x
@@ -659,7 +792,7 @@ class GameEngine(
                 playerVy = 0f
                 isOnGround = true
                 snapRotation()
-                if (isHolding) {
+                if (isHolding && gameMode == PlayerGameMode.CUBE) {
                     performJump()
                 }
             } else if (playerX + 0.78f > oLeft && playerX + 0.15f < oLeft && playerY < oTop - 0.18f && playerY + 0.85f > oBottom) {
@@ -673,7 +806,7 @@ class GameEngine(
                 playerVy = 0f
                 isOnGround = true
                 snapRotation()
-                if (isHolding) {
+                if (isHolding && gameMode == PlayerGameMode.CUBE) {
                     performJump()
                 }
             } else if (playerX + 0.78f > oLeft && playerX + 0.15f < oLeft && playerY + 0.82f > oBottom + 0.18f && playerY + 0.15f < oTop) {
@@ -731,6 +864,19 @@ class GameEngine(
             ObjectType.PORTAL_CUBE -> {
                 if (gameMode != PlayerGameMode.CUBE) {
                     gameMode = PlayerGameMode.CUBE
+                    snapRotation()
+                    GameAudioEngine.playGravity()
+                }
+            }
+            ObjectType.PORTAL_WAVE -> {
+                if (gameMode != PlayerGameMode.WAVE) {
+                    gameMode = PlayerGameMode.WAVE
+                    GameAudioEngine.playGravity()
+                }
+            }
+            ObjectType.PORTAL_UFO -> {
+                if (gameMode != PlayerGameMode.UFO) {
+                    gameMode = PlayerGameMode.UFO
                     snapRotation()
                     GameAudioEngine.playGravity()
                 }

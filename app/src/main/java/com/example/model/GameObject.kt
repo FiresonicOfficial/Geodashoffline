@@ -61,6 +61,8 @@ enum class ObjectType(
     // Portals
     PORTAL_SHIP("Ship Portal", ObjectCategory.PORTALS, 1f, 2.5f, 0xFFFF4081, isInteractive = true),
     PORTAL_CUBE("Cube Portal", ObjectCategory.PORTALS, 1f, 2.5f, 0xFF00E676, isInteractive = true),
+    PORTAL_WAVE("Wave Portal", ObjectCategory.PORTALS, 1f, 2.5f, 0xFF00E5FF, isInteractive = true),
+    PORTAL_UFO("UFO Portal", ObjectCategory.PORTALS, 1f, 2.5f, 0xFFFF9100, isInteractive = true),
     PORTAL_GRAVITY_INVERT("Gravity Invert", ObjectCategory.PORTALS, 1f, 2.5f, 0xFFFF9100, isInteractive = true),
     PORTAL_GRAVITY_NORMAL("Gravity Normal", ObjectCategory.PORTALS, 1f, 2.5f, 0xFF2979FF, isInteractive = true),
     PORTAL_SPEED_0_5X("Speed 0.5x", ObjectCategory.PORTALS, 1f, 2.5f, 0xFFFFAB00, isInteractive = true),

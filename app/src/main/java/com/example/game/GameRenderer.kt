@@ -17,6 +17,8 @@ object GameRenderer {
     private val spikePath = Path()
     private val hangingSpikePath = Path()
     private val shipPath = Path()
+    private val wavePath = Path()
+    private val ufoPath = Path()
     private val diamondPath = Path()
 
     fun renderGame(
@@ -493,6 +495,7 @@ object GameRenderer {
             }
 
             ObjectType.PORTAL_SHIP, ObjectType.PORTAL_CUBE,
+            ObjectType.PORTAL_WAVE, ObjectType.PORTAL_UFO,
             ObjectType.PORTAL_GRAVITY_INVERT, ObjectType.PORTAL_GRAVITY_NORMAL,
             ObjectType.PORTAL_SPEED_0_5X, ObjectType.PORTAL_SPEED_1X, ObjectType.PORTAL_SPEED_2X,
             ObjectType.PORTAL_SPEED_3X, ObjectType.PORTAL_SPEED_4X -> {
@@ -514,6 +517,41 @@ object GameRenderer {
                     size = Size(objW * 0.5f, objH * 0.8f),
                     style = Stroke(width = 2f)
                 )
+
+                // Portal inner mode icon/symbol
+                when (obj.type) {
+                    ObjectType.PORTAL_WAVE -> {
+                        // Sharp zigzag wave glyph inside portal
+                        val pMidY = screenY + objH * 0.5f
+                        val pMidX = screenX + objW * 0.5f
+                        wavePath.reset()
+                        wavePath.moveTo(pMidX - objW * 0.2f, pMidY + objH * 0.1f)
+                        wavePath.lineTo(pMidX, pMidY - objH * 0.1f)
+                        wavePath.lineTo(pMidX + objW * 0.2f, pMidY + objH * 0.1f)
+                        scope.drawPath(wavePath, color = Color.White, style = Stroke(width = 3f))
+                    }
+                    ObjectType.PORTAL_UFO -> {
+                        // Flying saucer disc glyph inside portal
+                        val pMidY = screenY + objH * 0.5f
+                        val pMidX = screenX + objW * 0.5f
+                        scope.drawOval(
+                            color = Color.White,
+                            topLeft = Offset(pMidX - objW * 0.25f, pMidY - objH * 0.08f),
+                            size = Size(objW * 0.5f, objH * 0.16f)
+                        )
+                    }
+                    ObjectType.PORTAL_SHIP -> {
+                        val pMidY = screenY + objH * 0.5f
+                        val pMidX = screenX + objW * 0.5f
+                        scope.drawLine(
+                            color = Color.White,
+                            start = Offset(pMidX - objW * 0.2f, pMidY),
+                            end = Offset(pMidX + objW * 0.2f, pMidY),
+                            strokeWidth = 3f
+                        )
+                    }
+                    else -> {}
+                }
             }
 
             ObjectType.COIN -> {
@@ -774,72 +812,173 @@ object GameRenderer {
         val center = Offset(px + pSize * 0.5f, py + pSize * 0.5f)
 
         scope.rotate(degrees = engine.playerRotation, pivot = center) {
-            if (engine.gameMode == PlayerGameMode.CUBE) {
-                // Main yellow square body
-                scope.drawRect(
-                    color = Color(0xFFFFE600),
-                    topLeft = Offset(px, py),
-                    size = Size(pSize, pSize)
-                )
-                // Dark outer border
-                scope.drawRect(
-                    color = Color(0xFF0B0E1B),
-                    topLeft = Offset(px, py),
-                    size = Size(pSize, pSize),
-                    style = Stroke(width = 3f)
-                )
-                // Inner cyan frame
-                val pad = pSize * 0.12f
-                scope.drawRect(
-                    color = Color(0xFF00E5FF),
-                    topLeft = Offset(px + pad, py + pad),
-                    size = Size(pSize - pad * 2, pSize - pad * 2)
-                )
-                // Inner yellow core
-                val corePad = pSize * 0.22f
-                scope.drawRect(
-                    color = Color(0xFFFFE600),
-                    topLeft = Offset(px + corePad, py + corePad),
-                    size = Size(pSize - corePad * 2, pSize - corePad * 2)
-                )
-                // Cyber eyes
-                val eyeW = pSize * 0.16f
-                val eyeH = pSize * 0.2f
-                scope.drawRect(
-                    color = Color(0xFF0B0E1B),
-                    topLeft = Offset(px + pSize * 0.25f, py + pSize * 0.25f),
-                    size = Size(eyeW, eyeH)
-                )
-                scope.drawRect(
-                    color = Color(0xFF0B0E1B),
-                    topLeft = Offset(px + pSize * 0.6f, py + pSize * 0.25f),
-                    size = Size(eyeW, eyeH)
-                )
-                // Cyber mouth
-                scope.drawRect(
-                    color = Color(0xFF0B0E1B),
-                    topLeft = Offset(px + pSize * 0.3f, py + pSize * 0.65f),
-                    size = Size(pSize * 0.4f, pSize * 0.1f)
-                )
-            } else {
-                // Ship mode: sleek rocket
-                shipPath.reset()
-                shipPath.moveTo(px + pSize, py + pSize * 0.5f) // nose
-                shipPath.lineTo(px, py + pSize * 0.15f) // top tail
-                shipPath.lineTo(px + pSize * 0.25f, py + pSize * 0.5f) // indent
-                shipPath.lineTo(px, py + pSize * 0.85f) // bottom tail
-                shipPath.close()
+            when (engine.gameMode) {
+                PlayerGameMode.CUBE -> {
+                    // Main yellow square body
+                    scope.drawRect(
+                        color = Color(0xFFFFE600),
+                        topLeft = Offset(px, py),
+                        size = Size(pSize, pSize)
+                    )
+                    // Dark outer border
+                    scope.drawRect(
+                        color = Color(0xFF0B0E1B),
+                        topLeft = Offset(px, py),
+                        size = Size(pSize, pSize),
+                        style = Stroke(width = 3f)
+                    )
+                    // Inner cyan frame
+                    val pad = pSize * 0.12f
+                    scope.drawRect(
+                        color = Color(0xFF00E5FF),
+                        topLeft = Offset(px + pad, py + pad),
+                        size = Size(pSize - pad * 2, pSize - pad * 2)
+                    )
+                    // Inner yellow core
+                    val corePad = pSize * 0.22f
+                    scope.drawRect(
+                        color = Color(0xFFFFE600),
+                        topLeft = Offset(px + corePad, py + corePad),
+                        size = Size(pSize - corePad * 2, pSize - corePad * 2)
+                    )
+                    // Cyber eyes
+                    val eyeW = pSize * 0.16f
+                    val eyeH = pSize * 0.2f
+                    scope.drawRect(
+                        color = Color(0xFF0B0E1B),
+                        topLeft = Offset(px + pSize * 0.25f, py + pSize * 0.25f),
+                        size = Size(eyeW, eyeH)
+                    )
+                    scope.drawRect(
+                        color = Color(0xFF0B0E1B),
+                        topLeft = Offset(px + pSize * 0.6f, py + pSize * 0.25f),
+                        size = Size(eyeW, eyeH)
+                    )
+                    // Cyber mouth
+                    scope.drawRect(
+                        color = Color(0xFF0B0E1B),
+                        topLeft = Offset(px + pSize * 0.3f, py + pSize * 0.65f),
+                        size = Size(pSize * 0.4f, pSize * 0.1f)
+                    )
+                }
+                PlayerGameMode.SHIP -> {
+                    // Ship mode: sleek rocket
+                    shipPath.reset()
+                    shipPath.moveTo(px + pSize, py + pSize * 0.5f) // nose
+                    shipPath.lineTo(px, py + pSize * 0.15f) // top tail
+                    shipPath.lineTo(px + pSize * 0.25f, py + pSize * 0.5f) // indent
+                    shipPath.lineTo(px, py + pSize * 0.85f) // bottom tail
+                    shipPath.close()
 
-                scope.drawPath(path = shipPath, color = Color(0xFFFF4081))
-                scope.drawPath(path = shipPath, color = Color.White, style = Stroke(width = 2.5f))
+                    scope.drawPath(path = shipPath, color = Color(0xFFFF4081))
+                    scope.drawPath(path = shipPath, color = Color.White, style = Stroke(width = 2.5f))
 
-                // Mini cube pilot inside cockpit
-                val cockpitSize = pSize * 0.35f
-                scope.drawRect(
-                    color = Color(0xFFFFE600),
-                    topLeft = Offset(px + pSize * 0.35f, py + pSize * 0.325f),
-                    size = Size(cockpitSize, cockpitSize)
-                )
+                    // Mini cube pilot inside cockpit
+                    val cockpitSize = pSize * 0.35f
+                    scope.drawRect(
+                        color = Color(0xFFFFE600),
+                        topLeft = Offset(px + pSize * 0.35f, py + pSize * 0.325f),
+                        size = Size(cockpitSize, cockpitSize)
+                    )
+                }
+                PlayerGameMode.WAVE -> {
+                    // Wave mode: authentic sharp dart / arrow with glowing core
+                    wavePath.reset()
+                    wavePath.moveTo(px + pSize * 1.05f, py + pSize * 0.5f) // Sharp nose
+                    wavePath.lineTo(px + pSize * 0.05f, py + pSize * 0.12f) // Top wing tip
+                    wavePath.lineTo(px + pSize * 0.32f, py + pSize * 0.5f) // Inner back notch
+                    wavePath.lineTo(px + pSize * 0.05f, py + pSize * 0.88f) // Bottom wing tip
+                    wavePath.close()
+
+                    // Electric cyan body with pure white outline
+                    scope.drawPath(path = wavePath, color = Color(0xFF00E5FF))
+                    scope.drawPath(path = wavePath, color = Color.White, style = Stroke(width = 2.5f))
+
+                    // Inner glowing chevron stripe
+                    val innerChevron = Path()
+                    innerChevron.moveTo(px + pSize * 0.75f, py + pSize * 0.5f)
+                    innerChevron.lineTo(px + pSize * 0.28f, py + pSize * 0.28f)
+                    innerChevron.lineTo(px + pSize * 0.42f, py + pSize * 0.5f)
+                    innerChevron.lineTo(px + pSize * 0.28f, py + pSize * 0.72f)
+                    innerChevron.close()
+                    scope.drawPath(path = innerChevron, color = Color.White)
+
+                    // Glowing core star
+                    scope.drawCircle(
+                        color = Color(0xFF00B0FF),
+                        radius = pSize * 0.10f,
+                        center = Offset(px + pSize * 0.6f, py + pSize * 0.5f)
+                    )
+                }
+                PlayerGameMode.UFO -> {
+                    // UFO mode: authentic flying saucer with cockpit glass dome and pilot
+                    val saucerWidth = pSize * 1.05f
+                    val saucerHeight = pSize * 0.34f
+                    val saucerTopY = py + pSize * 0.44f
+
+                    // 1. Thruster glow at bottom
+                    scope.drawOval(
+                        color = Color(0xFFFF5722),
+                        topLeft = Offset(px + pSize * 0.25f, py + pSize * 0.68f),
+                        size = Size(pSize * 0.55f, pSize * 0.18f)
+                    )
+                    scope.drawCircle(
+                        color = Color(0xFFFFEB3B),
+                        radius = pSize * 0.09f,
+                        center = Offset(px + pSize * 0.52f, py + pSize * 0.76f)
+                    )
+
+                    // 2. Glass cockpit dome arc
+                    scope.drawArc(
+                        color = Color(0xFF00E5FF).copy(alpha = 0.55f),
+                        startAngle = 180f,
+                        sweepAngle = 180f,
+                        useCenter = true,
+                        topLeft = Offset(px + pSize * 0.22f, py + pSize * 0.12f),
+                        size = Size(pSize * 0.6f, pSize * 0.5f)
+                    )
+                    scope.drawArc(
+                        color = Color.White,
+                        startAngle = 180f,
+                        sweepAngle = 180f,
+                        useCenter = false,
+                        topLeft = Offset(px + pSize * 0.22f, py + pSize * 0.12f),
+                        size = Size(pSize * 0.6f, pSize * 0.5f),
+                        style = Stroke(width = 2f)
+                    )
+
+                    // 3. Mini cube pilot inside dome
+                    val pilotSize = pSize * 0.22f
+                    scope.drawRect(
+                        color = Color(0xFFFFE600),
+                        topLeft = Offset(px + pSize * 0.41f, py + pSize * 0.24f),
+                        size = Size(pilotSize, pilotSize)
+                    )
+                    scope.drawRect(
+                        color = Color(0xFF0B0E1B),
+                        topLeft = Offset(px + pSize * 0.50f, py + pSize * 0.28f),
+                        size = Size(pilotSize * 0.3f, pilotSize * 0.35f)
+                    )
+
+                    // 4. Main saucer hull (metallic disc with vibrant orange/amber rim)
+                    scope.drawOval(
+                        color = Color(0xFF263238),
+                        topLeft = Offset(px, saucerTopY),
+                        size = Size(saucerWidth, saucerHeight)
+                    )
+                    scope.drawOval(
+                        color = Color(0xFFFF9100),
+                        topLeft = Offset(px, saucerTopY),
+                        size = Size(saucerWidth, saucerHeight),
+                        style = Stroke(width = 3f)
+                    )
+
+                    // 5. Saucer rim lights
+                    val lightRadius = pSize * 0.05f
+                    scope.drawCircle(color = Color.White, radius = lightRadius, center = Offset(px + pSize * 0.2f, saucerTopY + saucerHeight * 0.5f))
+                    scope.drawCircle(color = Color(0xFFFFEA00), radius = lightRadius, center = Offset(px + pSize * 0.52f, saucerTopY + saucerHeight * 0.5f))
+                    scope.drawCircle(color = Color.White, radius = lightRadius, center = Offset(px + pSize * 0.85f, saucerTopY + saucerHeight * 0.5f))
+                }
             }
         }
     }
