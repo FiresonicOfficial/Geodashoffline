@@ -20,29 +20,71 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-            distribution: 'temurin'
-            java-version: '21'
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Accept Android SDK Licenses
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept All Android SDK Licenses
         run: |
           mkdir -p "$ANDROID_HOME/licenses" || true
-          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\ne6b7c2ab7fa2298e15165e1118370ff9c1f82663\n" > "$ANDROID_HOME/licenses/android-sdk-license"
-          printf "84831b9409646a918e30573bab4c9c91346d8abd\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          printf "601085b94cd77f6b54b86eebd637d4c2a17b4a84\n" > "$ANDROID_HOME/licenses/android-googletv-license"
-          printf "859f317696f67ef3d7f30a50a5560e7834b43903\n" > "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license"
-          printf "33b6a2b64f07f11d23a55955ab86103a4930c657\n" > "$ANDROID_HOME/licenses/google-gdk-license"
-          printf "e9acab5b5fbb560a72cfa4f46c0b907b9468f2d0\n" > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
+          mkdir -p "$ANDROID_SDK_ROOT/licenses" || true
+
+          # Pipe 'y' to sdkmanager to automatically accept any missing licenses
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+          # Populate all standard accepted license hashes
+          cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-license"
+24333f8a63b6825ea9c5514f83c2829b004d1fee
+d56f5187479451eabf01fb78af6dfcb131a6481e
+e6b7c2ab7fa2298e15165e1118370ff9c1f82663
+89388d6e79037b964a1f1ec640e3f73d8684755a
+27229f7d25e1a2f6ca3c023fe21f379f8ef4e112
+EOF
+          cp "$ANDROID_HOME/licenses/android-sdk-license" "$ANDROID_SDK_ROOT/licenses/android-sdk-license" || true
+
+          cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+84831b9409646a918e30573bab4c9c91346d8abd
+7993a44a35a40a15b1d68c814441464e137b2fc8
+EOF
+          cp "$ANDROID_HOME/licenses/android-sdk-preview-license" "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license" || true
+
+          cat << 'EOF' > "$ANDROID_HOME/licenses/android-googletv-license"
+601085b94cd77f6b54b86eebd637d4c2a17b4a84
+EOF
+          cp "$ANDROID_HOME/licenses/android-googletv-license" "$ANDROID_SDK_ROOT/licenses/android-googletv-license" || true
+
+          cat << 'EOF' > "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license"
+859f317696f67ef3d7f30a50a5560e7834b43903
+EOF
+          cp "$ANDROID_HOME/licenses/android-sdk-arm-dbt-license" "$ANDROID_SDK_ROOT/licenses/android-sdk-arm-dbt-license" || true
+
+          cat << 'EOF' > "$ANDROID_HOME/licenses/google-gdk-license"
+33b6a2b64f07f11d23a55955ab86103a4930c657
+EOF
+          cp "$ANDROID_HOME/licenses/google-gdk-license" "$ANDROID_SDK_ROOT/licenses/google-gdk-license" || true
+
+          cat << 'EOF' > "$ANDROID_HOME/licenses/mips-android-sysimage-license"
+e9acab5b5fbb560a72cfa4f46c0b907b9468f2d0
+EOF
+          cp "$ANDROID_HOME/licenses/mips-android-sysimage-license" "$ANDROID_SDK_ROOT/licenses/mips-android-sysimage-license" || true
+
+      - name: Install Android SDK Platform 36
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "platform-tools" || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Prepare Keystore and Environment
         run: |
-          chmod +x gradlew
-
           # Prepare .env for Secrets Gradle plugin
           if [ ! -f .env ]; then
             if [ -f .env.example ]; then
@@ -52,22 +94,24 @@ jobs:
             fi
           fi
 
-          # Restore or generate debug.keystore
+          # Restore debug.keystore from base64 if present, or generate fresh
           if [ ! -f debug.keystore ]; then
             if [ -f debug.keystore.base64 ]; then
               echo "Restoring debug.keystore from base64..."
               base64 -d debug.keystore.base64 > debug.keystore
-            else
-              echo "Generating fallback debug.keystore..."
-              keytool -genkey -v -keystore debug.keystore \
-                -storepass android \
-                -alias androiddebugkey \
-                -keypass android \
-                -keyalg RSA \
-                -keysize 2048 \
-                -validity 10000 \
-                -dname "CN=Android Debug,O=Android,C=US"
             fi
+          fi
+
+          if [ ! -f debug.keystore ]; then
+            echo "Generating fallback debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
           fi
 
       - name: Build Debug APK
@@ -76,6 +120,15 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GeoDash-v1.1-Debug-APK
+          name: GeoDash-Offline-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
+          if-no-files-found: error
+
+      - name: Create GitHub Release on Tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

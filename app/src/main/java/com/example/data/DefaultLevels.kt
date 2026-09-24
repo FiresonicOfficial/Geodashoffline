@@ -23,72 +23,146 @@ object DefaultLevels {
             createTheoryOfEverything(),
             createElectroman(),
             createClubstep(),
+            createElectrodynamix(),
+            createHexagonForce(),
+            createBlastProcessing(),
             createDeadlocked()
         )
     }
 
-    // 1. STEREO MADNESS (Easy 1★)
-    private fun createStereoMadness(): Level {
+    // Helper to generate a rhythmic, fair, accessible sequence
+    private class LevelBuilder(var cursorX: Float = 10f) {
         val objects = mutableListOf<GameObject>()
-        var x = 8f
 
-        // Warm-up single spikes
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 6.5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 6.5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        x += 6.5f
-
-        // Pyramid platform with Coin 1
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1.5f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3.0f, y = 2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 4.5f, y = 2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3.75f, y = 3.5f, type = ObjectType.COIN)) // Coin 1
-        objects.add(GameObject(x = x + 6.0f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 7.5f, y = 0f, type = ObjectType.BLOCK))
-        x += 12f
-
-        // Yellow pad over spikes
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 1.8f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8f
-
-        // Elevated bridge
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + (i * 1.5f), y = 1.5f, type = ObjectType.BLOCK))
-            objects.add(GameObject(x = x + (i * 1.5f), y = 0f, type = ObjectType.SPIKE_SMALL))
+        fun add(type: ObjectType, y: Float = 0f, advanceAfter: Float = 0f) {
+            objects.add(GameObject(x = cursorX, y = y, type = type))
+            if (advanceAfter > 0f) {
+                cursorX += advanceAfter
+            }
         }
-        x += 11f
 
-        // High pillar with Coin 2
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 3.2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.5f, y = 4.5f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 3.5f, y = 0f, type = ObjectType.SPIKE))
-        x += 8.5f
+        fun advance(dx: Float) {
+            cursorX += dx
+        }
 
-        // Yellow orb airborne rhythm
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1.5f, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3.2f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4.8f, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 6.5f, y = 0f, type = ObjectType.SPIKE))
-        x += 11f
+        fun addPlatform(length: Int, y: Float, stepWidth: Float = 1.2f, hasGroundHazard: Boolean = false) {
+            for (i in 0 until length) {
+                val px = cursorX + (i * stepWidth)
+                objects.add(GameObject(x = px, y = y, type = ObjectType.BLOCK))
+                if (hasGroundHazard && i % 2 == 0) {
+                    objects.add(GameObject(x = px, y = 0f, type = ObjectType.SPIKE_SMALL))
+                }
+            }
+            cursorX += length * stepWidth + 2f
+        }
 
-        // Final sprint with Coin 3
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1.2f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.6f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4.0f, y = 1.6f, type = ObjectType.COIN)) // Coin 3
-        objects.add(GameObject(x = x + 5.2f, y = 0f, type = ObjectType.SPIKE))
-        x += 9f
+        fun addJumpPadOverHazard(padType: ObjectType, hazardType: ObjectType, padY: Float = 0f) {
+            objects.add(GameObject(x = cursorX, y = padY, type = padType))
+            objects.add(GameObject(x = cursorX + 2.2f, y = 0f, type = hazardType))
+            cursorX += 7.5f
+        }
+
+        fun addOrbSequence(orbType: ObjectType, orbY: Float = 1.6f, groundSpike: Boolean = true) {
+            if (groundSpike) {
+                objects.add(GameObject(x = cursorX + 0.8f, y = 0f, type = ObjectType.SPIKE))
+            }
+            objects.add(GameObject(x = cursorX + 0.8f, y = orbY, type = orbType))
+            cursorX += 6.5f
+        }
+
+        fun addShipSection(lengthUnits: Float, clearance: Float = 4.2f, hasObstacles: Boolean = true) {
+            // Ship Portal
+            objects.add(GameObject(x = cursorX, y = 2f, type = ObjectType.PORTAL_SHIP))
+            cursorX += 5f
+
+            val startX = cursorX
+            var currentY = 2.5f
+
+            while (cursorX < startX + lengthUnits) {
+                // Ceiling and floor boundaries
+                objects.add(GameObject(x = cursorX, y = 7.2f, type = ObjectType.BLOCK_DARK))
+                objects.add(GameObject(x = cursorX, y = 0f, type = ObjectType.SPIKE_SMALL))
+
+                if (hasObstacles && ((cursorX - startX).toInt() % 16 == 0)) {
+                    // Gentle floating obstacle
+                    objects.add(GameObject(x = cursorX, y = currentY, type = ObjectType.BLOCK_GRID))
+                    objects.add(GameObject(x = cursorX + 1.2f, y = currentY, type = ObjectType.BLOCK_GRID))
+                    currentY = if (currentY > 3.5f) 2.2f else 4.2f
+                }
+                cursorX += 2.5f
+            }
+
+            // Return to Cube Portal
+            objects.add(GameObject(x = cursorX, y = 2f, type = ObjectType.PORTAL_CUBE))
+            cursorX += 6f
+        }
+    }
+
+    // 1. STEREO MADNESS (Easy 1★) - 245 units long (~23.5s)
+    private fun createStereoMadness(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+
+        // Stage 1: Basic timing & single spikes (Accessible warm-up)
+        for (i in 0..2) {
+            b.add(ObjectType.SPIKE, 0f, advanceAfter = 7.5f)
+        }
+
+        // Stepped pyramid with Coin 1
+        b.add(ObjectType.BLOCK, 0f, advanceAfter = 1.4f)
+        b.add(ObjectType.BLOCK, 1f, advanceAfter = 1.4f)
+        b.add(ObjectType.BLOCK, 2f)
+        b.add(ObjectType.COIN, 3.5f, advanceAfter = 1.4f) // Coin 1
+        b.add(ObjectType.BLOCK, 1f, advanceAfter = 1.4f)
+        b.add(ObjectType.BLOCK, 0f, advanceAfter = 6f)
+
+        // Jump pad over double spikes
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
+
+        // Bridge platforms
+        b.addPlatform(length = 4, y = 1.5f, hasGroundHazard = true)
+
+        // Background Color Trigger: Shift to vibrant Cyan!
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 4f)
+        b.add(ObjectType.TRIGGER_GROUND_BLUE, 0.5f)
+
+        // Yellow jump orbs in air
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 1.8f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 1.8f)
+
+        // Floating pillar with Coin 2
+        b.add(ObjectType.PAD_YELLOW, 0f, advanceAfter = 2.5f)
+        b.add(ObjectType.BLOCK, 3f)
+        b.add(ObjectType.COIN, 4.5f, advanceAfter = 4f) // Coin 2
+        b.add(ObjectType.BLOCK, 1f, advanceAfter = 5f)
+
+        // Ship Flight Sequence (Wide corridor, forgiving navigation)
+        b.addShipSection(lengthUnits = 45f, clearance = 4.5f, hasObstacles = false)
+
+        // Background Color Trigger: Shift to deep purple
+        b.add(ObjectType.TRIGGER_BG_PURPLE, 0.5f, advanceAfter = 4f)
+        b.add(ObjectType.TRIGGER_GROUND_PURPLE, 0.5f)
+
+        // Cube Sprint: Pads & dual jumps
+        for (i in 0..2) {
+            b.addJumpPadOverHazard(ObjectType.PAD_PINK, ObjectType.SPIKE)
+        }
+
+        // Elevated sprint with Coin 3
+        b.addPlatform(length = 5, y = 2f, hasGroundHazard = true)
+        b.add(ObjectType.COIN, 3.8f) // Coin 3
+        b.advance(4f)
+
+        // Final gentle sprint to finish line (~245m)
+        b.add(ObjectType.SPIKE_SMALL, 0f, advanceAfter = 8f)
+        b.add(ObjectType.BLOCK_RAINBOW, 0f, advanceAfter = 2f)
+        b.add(ObjectType.BLOCK_RAINBOW, 1f, advanceAfter = 2f)
+        b.add(ObjectType.BLOCK_RAINBOW, 2f, advanceAfter = 8f)
+        b.advance(15f)
 
         return Level(
             id = "main_stereo_madness",
             name = "Stereo Madness",
-            description = "The classic original journey. Master basic timing, blocks, and bounce pads.",
+            description = "The classic original journey. Over 20s of rhythmic timing, blocks, pads, and ship flight.",
             difficulty = Difficulty.EASY,
             stars = 1,
             author = "RobTop / GeoDash",
@@ -96,59 +170,59 @@ object DefaultLevels {
             musicTrack = 0,
             bgColor = 0xFF0D1B2A,
             groundColor = 0xFF1B263B,
-            objects = objects,
+            objects = b.objects,
             isUnlocked = true,
             createdAt = 1000L
         )
     }
 
-    // 2. BACK ON TRACK (Easy 2★)
+    // 2. BACK ON TRACK (Easy 2★) - 250 units long (~24s)
     private fun createBackOnTrack(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
 
-        // Yellow jump pads
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8f
+        // Bouncy yellow pads
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
 
-        // Elevated bounce sequences
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3.4f, y = 2f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 5.8f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        objects.add(GameObject(x = x + 3.4f, y = 3.6f, type = ObjectType.COIN)) // Coin 1
-        x += 11f
+        // Elevated bounce sequences with Coin 1
+        b.add(ObjectType.PAD_YELLOW, 0f, advanceAfter = 2.4f)
+        b.add(ObjectType.BLOCK, 2f)
+        b.add(ObjectType.COIN, 3.6f, advanceAfter = 1.2f) // Coin 1
+        b.add(ObjectType.PAD_YELLOW, 2f, advanceAfter = 5.5f)
+
+        // Color Trigger: Shift to Ocean Blue
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 3f)
 
         // Double spike leaps
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 5.5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 6.5f
+        b.add(ObjectType.SPIKE_DUAL, 0f, advanceAfter = 7.5f)
+        b.add(ObjectType.SPIKE_DUAL, 0f, advanceAfter = 7.5f)
 
-        // Pink bounce pads
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_PINK))
-        objects.add(GameObject(x = x + 2f, y = 1.2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3.2f, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 4.5f, y = 2.4f, type = ObjectType.COIN)) // Coin 2
-        x += 9f
+        // Pink pads (low jump) with Coin 2
+        b.add(ObjectType.PAD_PINK, 0f, advanceAfter = 2.2f)
+        b.add(ObjectType.BLOCK, 1.2f)
+        b.add(ObjectType.COIN, 2.6f, advanceAfter = 3.5f) // Coin 2
+        b.add(ObjectType.SPIKE, 0f, advanceAfter = 6f)
 
         // Sawblade introduction
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 1f, type = ObjectType.SAWBLADE_SMALL))
-        objects.add(GameObject(x = x + 4.5f, y = 0f, type = ObjectType.BLOCK))
-        x += 8.5f
+        b.add(ObjectType.PAD_YELLOW, 0f, advanceAfter = 2.4f)
+        b.add(ObjectType.SAWBLADE_SMALL, 1f, advanceAfter = 4f)
+        b.add(ObjectType.BLOCK, 0f, advanceAfter = 6f)
 
-        // Coin 3 finish
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 2.8f, type = ObjectType.COIN)) // Coin 3
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8f
+        // Ship sequence
+        b.add(ObjectType.TRIGGER_BG_GREEN, 0.5f, advanceAfter = 2f)
+        b.addShipSection(lengthUnits = 50f, clearance = 4f, hasObstacles = true)
+
+        // Final pad flurry with Coin 3
+        b.add(ObjectType.PAD_YELLOW, 0f, advanceAfter = 2.5f)
+        b.add(ObjectType.COIN, 4f) // Coin 3
+        b.add(ObjectType.BLOCK, 2.5f, advanceAfter = 5f)
+        b.addPlatform(length = 6, y = 1.5f, hasGroundHazard = true)
+        b.advance(18f)
 
         return Level(
             id = "main_back_on_track",
             name = "Back On Track",
-            description = "Bouncy rhythm mechanics! Yellow and pink jump pads over spike pits.",
+            description = "Bouncy rhythm mechanics! Yellow and pink jump pads over spike pits with full length.",
             difficulty = Difficulty.EASY,
             stars = 2,
             author = "RobTop / GeoDash",
@@ -156,48 +230,48 @@ object DefaultLevels {
             musicTrack = 0,
             bgColor = 0xFF003049,
             groundColor = 0xFF023E8A,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Stereo Madness or 1 Star",
+            objects = b.objects,
+            isUnlocked = true,
             createdAt = 1100L
         )
     }
 
-    // 3. POLARGEIST (Normal 3★)
+    // 3. POLARGEIST (Normal 3★) - 250 units long (~24s)
     private fun createPolargeist(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
 
-        // Yellow Jump Rings in mid-air
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE))
-        objects.add(GameObject(x = x + 1.8f, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3.6f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8f
+        // Mid-air yellow orbs
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 1.8f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 2.2f)
 
         // Multi-ring chain with Coin 1
-        objects.add(GameObject(x = x, y = 1.6f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 2.4f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 4.4f, y = 3.6f, type = ObjectType.COIN)) // Coin 1
-        objects.add(GameObject(x = x + 2.0f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 9.5f
+        b.add(ObjectType.ORB_YELLOW, 1.6f, advanceAfter = 2.2f)
+        b.add(ObjectType.ORB_YELLOW, 2.4f)
+        b.add(ObjectType.COIN, 3.8f, advanceAfter = 4f) // Coin 1
+        b.add(ObjectType.SPIKE_SMALL, 0f, advanceAfter = 6f)
+
+        // Color trigger
+        b.add(ObjectType.TRIGGER_BG_PURPLE, 0.5f, advanceAfter = 3f)
 
         // Platforming with small saw hazards
-        objects.add(GameObject(x = x, y = 1.2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1.2f, y = 1.2f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.8f, y = 1.5f, type = ObjectType.SAWBLADE_SMALL))
-        objects.add(GameObject(x = x + 4.4f, y = 1.2f, type = ObjectType.BLOCK))
-        x += 9.5f
+        b.addPlatform(length = 5, y = 1.5f, hasGroundHazard = true)
+        b.add(ObjectType.SAWBLADE_SMALL, 1.8f, advanceAfter = 6f)
 
-        // Pink orb micro jump with Coin 2
-        objects.add(GameObject(x = x, y = 1.4f, type = ObjectType.ORB_PINK))
-        objects.add(GameObject(x = x + 2.5f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 2.2f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8f
+        // Pink orb micro-jumps with Coin 2
+        b.addOrbSequence(ObjectType.ORB_PINK, orbY = 1.5f)
+        b.add(ObjectType.COIN, 2.8f) // Coin 2
+        b.addOrbSequence(ObjectType.ORB_PINK, orbY = 1.5f)
 
-        // Triple spike test
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 8f
+        // Smooth ship section
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 2f)
+        b.addShipSection(lengthUnits = 55f, clearance = 4.2f, hasObstacles = true)
+
+        // Climax orb and pad rhythm
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 2f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 3
+        b.addPlatform(length = 6, y = 1.5f)
+        b.advance(18f)
 
         return Level(
             id = "main_polargeist",
@@ -210,685 +284,557 @@ object DefaultLevels {
             musicTrack = 1,
             bgColor = 0xFF14213D,
             groundColor = 0xFF001B2E,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Back On Track or 3 Stars",
+            objects = b.objects,
+            isUnlocked = true,
             createdAt = 1200L
         )
     }
 
-    // 4. DRY OUT (Normal 4★)
+    // 4. DRY OUT (Normal 3★) - 255 units long (~24.5s)
     private fun createDryOut(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
 
         // Step pyramids
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1.5f, y = 1f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3.0f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8.5f
+        b.addPlatform(length = 4, y = 1f)
+        b.add(ObjectType.SPIKE_DUAL, 0f, advanceAfter = 7.5f)
+
+        // Color Trigger: Desert Red
+        b.add(ObjectType.TRIGGER_BG_RED, 0.5f, advanceAfter = 3f)
 
         // Inverted gravity portal!
-        objects.add(GameObject(x = x, y = 1f, type = ObjectType.PORTAL_GRAVITY_INVERT))
-        x += 4f
+        b.add(ObjectType.PORTAL_GRAVITY_INVERT, 1.5f, advanceAfter = 5f)
 
-        // Upside down ceiling platforming with hanging spikes
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + (i * 1.5f), y = 6.5f, type = ObjectType.BLOCK_DARK))
-            objects.add(GameObject(x = x + (i * 1.5f), y = 5.5f, type = ObjectType.SPIKE_HANGING))
-            objects.add(GameObject(x = x + (i * 1.5f), y = 0f, type = ObjectType.SPIKE_SMALL))
+        // Upside down ceiling platforming with hanging spikes & Coin 1
+        for (i in 0..5) {
+            b.add(ObjectType.BLOCK_DARK, 6.5f)
+            b.add(ObjectType.SPIKE_HANGING, 5.5f)
+            b.advance(1.8f)
         }
-        objects.add(GameObject(x = x + 3f, y = 4.2f, type = ObjectType.COIN)) // Coin 1
-        x += 11f
+        b.add(ObjectType.COIN, 4.5f) // Coin 1
+        b.advance(4f)
 
         // Normal gravity return
-        objects.add(GameObject(x = x, y = 5.5f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        x += 5f
+        b.add(ObjectType.PORTAL_GRAVITY_NORMAL, 5.5f, advanceAfter = 6f)
 
         // Rotating sawblade hop
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 1f, type = ObjectType.SAWBLADE_MEDIUM))
-        objects.add(GameObject(x = x + 4.5f, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 4.5f, y = 2.2f, type = ObjectType.COIN)) // Coin 2
-        x += 9f
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SAWBLADE_MEDIUM)
 
-        // Triple spike finale
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
+        // Ship sequence
+        b.add(ObjectType.TRIGGER_BG_ORANGE, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 55f, clearance = 4f, hasObstacles = true)
+
+        // Final upside-down flip with Coin 2 & 3
+        b.add(ObjectType.PORTAL_GRAVITY_INVERT, 1.5f, advanceAfter = 4f)
+        b.add(ObjectType.COIN, 5f) // Coin 2
+        b.advance(10f)
+        b.add(ObjectType.PORTAL_GRAVITY_NORMAL, 5.5f, advanceAfter = 5f)
+        b.add(ObjectType.COIN, 2.5f) // Coin 3
+        b.addPlatform(length = 6, y = 1.2f)
+        b.advance(18f)
 
         return Level(
             id = "main_dry_out",
             name = "Dry Out",
-            description = "Defy gravity! Inverted perspective and ceiling platforming.",
+            description = "Upside-down gravity flips! Experience inverted flight and roof platforming.",
+            difficulty = Difficulty.NORMAL,
+            stars = 3,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 1,
+            bgColor = 0xFF2B0900,
+            groundColor = 0xFF3D1300,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 1300L
+        )
+    }
+
+    // 5. BASE AFTER BASE (Normal 4★) - 260 units long (~25s)
+    private fun createBaseAfterBase(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.addPlatform(length = 4, y = 1.5f)
+        b.add(ObjectType.SPIKE_DUAL, 0f, advanceAfter = 7.5f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 1.8f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 1
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 4f)
+
+        b.addShipSection(lengthUnits = 60f, clearance = 4.2f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.8f) // Coin 2
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 4f)
+
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_TRIPLE)
+        b.addOrbSequence(ObjectType.ORB_PINK, orbY = 1.6f)
+        b.add(ObjectType.COIN, 3.2f) // Coin 3
+        b.addPlatform(length = 7, y = 1.5f)
+        b.advance(20f)
+
+        return Level(
+            id = "main_base_after_base",
+            name = "Base After Base",
+            description = "Dark atmosphere, rhythm jumps, and balanced ship control across 260 meters.",
+            difficulty = Difficulty.NORMAL,
+            stars = 4,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 0,
+            bgColor = 0xFF0A0F1A,
+            groundColor = 0xFF141E30,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 1400L
+        )
+    }
+
+    // 6. CANT LET GO (Normal 4★) - 260 units long (~25s)
+    private fun createCantLetGo(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.addPlatform(length = 5, y = 1.2f, hasGroundHazard = true)
+        b.add(ObjectType.SPIKE_DUAL, 0f, advanceAfter = 7.5f)
+        b.addJumpPadOverHazard(ObjectType.PAD_PURPLE, ObjectType.SPIKE)
+        b.add(ObjectType.COIN, 3.5f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_RED, 0.5f, advanceAfter = 4f)
+        b.addShipSection(lengthUnits = 60f, clearance = 4f, hasObstacles = true)
+        b.add(ObjectType.COIN, 4f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_PURPLE, 0.5f, advanceAfter = 4f)
+        b.addOrbSequence(ObjectType.ORB_GREEN, orbY = 2f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 1.8f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 3
+        b.addPlatform(length = 8, y = 1.5f)
+        b.advance(20f)
+
+        return Level(
+            id = "main_cant_let_go",
+            name = "Can't Let Go",
+            description = "Tight gravity flips and hanging spikes test your rhythm and nerve.",
             difficulty = Difficulty.NORMAL,
             stars = 4,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 1,
-            bgColor = 0xFF28112B,
-            groundColor = 0xFF431238,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Polargeist or 6 Stars",
-            createdAt = 1300L
-        )
-    }
-
-    // 5. BASE AFTER BASE (Hard 5★)
-    private fun createBaseAfterBase(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
-
-        // Ship Portal Section
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_SHIP))
-        x += 5f
-
-        // Ship navigation corridor
-        for (i in 0..4) {
-            val yOffset = if (i % 2 == 0) 1f else 3f
-            objects.add(GameObject(x = x + (i * 4f), y = yOffset, type = ObjectType.SPIKE_SMALL))
-            objects.add(GameObject(x = x + (i * 4f), y = yOffset + 3.8f, type = ObjectType.SPIKE_HANGING))
-        }
-        objects.add(GameObject(x = x + 8f, y = 2.5f, type = ObjectType.COIN)) // Coin 1
-        x += 24f
-
-        // Return to Cube mode
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        x += 5f
-
-        // Dark blocks rhythm and sawblades
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 1.5f, y = 1.2f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 3.0f, y = 1.2f, type = ObjectType.SAWBLADE_MEDIUM))
-        objects.add(GameObject(x = x + 5.0f, y = 1.2f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 5.0f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
-        x += 10f
-
-        // Triple spike leaps
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7.5f
-
-        return Level(
-            id = "main_base_after_base",
-            name = "Base After Base",
-            description = "Rocket ship mode unlocked! Master smooth flight and dark block leaps.",
-            difficulty = Difficulty.HARD,
-            stars = 5,
-            author = "RobTop / GeoDash",
-            isCustom = false,
-            musicTrack = 0,
-            bgColor = 0xFF1B1B1E,
-            groundColor = 0xFF2E2E38,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Dry Out or 8 Stars",
-            createdAt = 1400L
-        )
-    }
-
-    // 6. CAN'T LET GO (Harder 6★)
-    private fun createCantLetGo(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
-
-        // Authentic dark menacing aesthetic, tight black pad leaps
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 5.5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-
-        // Black block towers with hanging spikes
-        objects.add(GameObject(x = x, y = 1f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 1.2f, y = 2f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        objects.add(GameObject(x = x + 4.0f, y = 2f, type = ObjectType.PAD_PINK))
-        objects.add(GameObject(x = x + 6.0f, y = 3.5f, type = ObjectType.COIN)) // Coin 1
-        x += 10f
-
-        // Gravity flip section with authentic spikes
-        objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.PORTAL_GRAVITY_INVERT))
-        x += 4f
-        objects.add(GameObject(x = x, y = 5.5f, type = ObjectType.SPIKE_HANGING))
-        objects.add(GameObject(x = x + 2f, y = 5.5f, type = ObjectType.SPIKE_HANGING))
-        objects.add(GameObject(x = x + 4f, y = 4.2f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 6f, y = 5.5f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        x += 10f
-
-        // Sawblade gauntlet
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 1.2f, type = ObjectType.SAWBLADE_LARGE))
-        objects.add(GameObject(x = x + 4.8f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 9.5f
-
-        return Level(
-            id = "main_cant_let_go",
-            name = "Can't Let Go",
-            description = "Dark themes, inverted micro-timings, and unforgiving dark block traps.",
-            difficulty = Difficulty.HARDER,
-            stars = 6,
-            author = "RobTop / GeoDash",
-            isCustom = false,
-            musicTrack = 2,
-            bgColor = 0xFF140D1E,
-            groundColor = 0xFF2A153A,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Base After Base or 10 Stars",
+            bgColor = 0xFF1A0A10,
+            groundColor = 0xFF2A0D18,
+            objects = b.objects,
+            isUnlocked = true,
             createdAt = 1500L
         )
     }
 
-    // 7. JUMPER (Harder 7★)
+    // 7. JUMPER (Hard 5★) - 265 units long (~25.5s)
     private fun createJumper(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
+        b.addJumpPadOverHazard(ObjectType.PAD_PINK, ObjectType.SPIKE)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 2f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 1
 
-        // Rapid bouncing sequences
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 2.2f, type = ObjectType.PAD_PINK))
-        objects.add(GameObject(x = x + 5.0f, y = 4.0f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 6.8f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        objects.add(GameObject(x = x + 5.0f, y = 5.2f, type = ObjectType.COIN)) // Coin 1
-        x += 11f
+        b.add(ObjectType.TRIGGER_BG_GREEN, 0.5f, advanceAfter = 4f)
+        b.addShipSection(lengthUnits = 65f, clearance = 4.2f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.5f) // Coin 2
 
-        // High altitude leaps
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.4f, y = 2.5f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 3.6f, y = 2.5f, type = ObjectType.SAWBLADE_MEDIUM))
-        objects.add(GameObject(x = x + 5.8f, y = 2.5f, type = ObjectType.BLOCK))
-        x += 10f
-
-        // Speed 2x portal jump
-        objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.PORTAL_SPEED_2X))
-        x += 4f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-        objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 2f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 8f
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 4f)
+        b.addJumpPadOverHazard(ObjectType.PAD_RED, ObjectType.SPIKE_TRIPLE)
+        b.addOrbSequence(ObjectType.ORB_RAINBOW, orbY = 2.2f)
+        b.add(ObjectType.COIN, 4f) // Coin 3
+        b.addPlatform(length = 8, y = 1.5f)
+        b.advance(20f)
 
         return Level(
             id = "main_jumper",
             name = "Jumper",
-            description = "High energy trampoline leaps, mid-air ring pivots, and rapid vertical gameplay.",
-            difficulty = Difficulty.HARDER,
-            stars = 7,
+            description = "High bouncing energetic pads! Experience vibrant color triggers and giant leaps.",
+            difficulty = Difficulty.HARD,
+            stars = 5,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 3,
-            bgColor = 0xFF03254C,
-            groundColor = 0xFF1167B1,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Can't Let Go or 14 Stars",
+            bgColor = 0xFF0D2818,
+            groundColor = 0xFF04471C,
+            objects = b.objects,
+            isUnlocked = true,
             createdAt = 1600L
         )
     }
 
-    // 8. TIME MACHINE (NEW - Insane 8★)
+    // 8. TIME MACHINE (Hard 5★) - 265 units long (~25.5s)
     private fun createTimeMachine(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.PORTAL_SPEED_2X, 1f, advanceAfter = 4f)
+        b.addPlatform(length = 5, y = 1.2f)
+        b.add(ObjectType.SPIKE_DUAL, 0f, advanceAfter = 8f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 1
 
-        // Famous triple spike test!
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7.5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7.5f
+        b.add(ObjectType.TRIGGER_BG_PURPLE, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 60f, clearance = 4f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.8f) // Coin 2
 
-        // Triple spike directly after block drop!
-        objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 1.2f, y = 1.5f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.8f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        objects.add(GameObject(x = x + 2.0f, y = 3.2f, type = ObjectType.COIN)) // Coin 1
-        x += 8f
-
-        // Triple jump orbs over spike beds
-        objects.add(GameObject(x = x, y = 1.6f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 2.0f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        objects.add(GameObject(x = x + 3.6f, y = 1.6f, type = ObjectType.ORB_PINK))
-        objects.add(GameObject(x = x + 4.8f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 9.5f
-
-        // Ship section with narrow sawtooth pillars
-        objects.add(GameObject(x = x, y = 2.5f, type = ObjectType.PORTAL_SHIP))
-        x += 5f
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + (i * 4.5f), y = 0.8f, type = ObjectType.SAWBLADE_SMALL))
-            objects.add(GameObject(x = x + (i * 4.5f), y = 5.2f, type = ObjectType.SPIKE_HANGING))
-        }
-        objects.add(GameObject(x = x + 9f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
-        x += 26f
-
-        // Return to Cube
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        x += 5f
-
-        // Quad spike with red mega pad!
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE_FOUR))
-        objects.add(GameObject(x = x + 2.5f, y = 3.8f, type = ObjectType.COIN)) // Coin 3
-        x += 9f
+        b.add(ObjectType.PORTAL_SPEED_1X, 1f, advanceAfter = 4f)
+        b.addOrbSequence(ObjectType.ORB_BLUE, orbY = 2f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 1.8f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 3
+        b.addPlatform(length = 7, y = 1.5f)
+        b.advance(20f)
 
         return Level(
             id = "main_time_machine",
             name = "Time Machine",
-            description = "The birthplace of the iconic Triple Spike. Precise late jumping is required.",
-            difficulty = Difficulty.INSANE,
-            stars = 8,
+            description = "Speed portals and triple-spike jumps across time and neon dimensions.",
+            difficulty = Difficulty.HARD,
+            stars = 5,
             author = "RobTop / GeoDash",
             isCustom = false,
-            musicTrack = 1,
-            bgColor = 0xFF2A0845,
-            groundColor = 0xFF6441A5,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Jumper or 18 Stars",
+            musicTrack = 3,
+            bgColor = 0xFF1B0A2A,
+            groundColor = 0xFF2E114D,
+            objects = b.objects,
+            isUnlocked = true,
             createdAt = 1700L
         )
     }
 
-    // 9. CYCLES (NEW - Insane 9★)
+    // 9. CYCLES (Hard 6★) - 270 units long (~26s)
     private fun createCycles(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
+        b.addPlatform(length = 4, y = 1.5f)
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SAWBLADE_MEDIUM)
+        b.add(ObjectType.COIN, 3.6f) // Coin 1
 
-        // Alternating gravity portals with rapid platform taps
-        objects.add(GameObject(x = x, y = 1.2f, type = ObjectType.PORTAL_GRAVITY_INVERT))
-        x += 4f
-        objects.add(GameObject(x = x, y = 6.5f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 1.5f, y = 6.5f, type = ObjectType.BLOCK_DARK))
-        objects.add(GameObject(x = x + 3.0f, y = 5.5f, type = ObjectType.SPIKE_HANGING))
-        objects.add(GameObject(x = x + 4.5f, y = 5.5f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        x += 9f
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 70f, clearance = 3.8f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.5f) // Coin 2
 
-        // Landing directly on yellow bounce pad
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.2f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        objects.add(GameObject(x = x + 2.2f, y = 3.5f, type = ObjectType.COIN)) // Coin 1
-        x += 8f
-
-        // Rotating sawblade tunnel
-        for (i in 0..3) {
-            objects.add(GameObject(x = x + (i * 3.5f), y = 1.5f, type = ObjectType.SAWBLADE_MEDIUM))
-            objects.add(GameObject(x = x + (i * 3.5f), y = 0f, type = ObjectType.SPIKE_SMALL))
-        }
-        x += 16f
-
-        // Blue gravity ring airborne cascade
-        objects.add(GameObject(x = x, y = 1.6f, type = ObjectType.ORB_BLUE))
-        objects.add(GameObject(x = x + 2.4f, y = 5.2f, type = ObjectType.ORB_BLUE))
-        objects.add(GameObject(x = x + 4.8f, y = 1.6f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 3.5f, y = 3.5f, type = ObjectType.COIN)) // Coin 2
-        x += 9f
-
-        // Final triple spike leap
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_GREEN, orbY = 2f)
+        b.addOrbSequence(ObjectType.ORB_PINK, orbY = 1.5f)
+        b.add(ObjectType.COIN, 4f) // Coin 3
+        b.addPlatform(length = 8, y = 1.5f)
+        b.advance(20f)
 
         return Level(
             id = "main_cycles",
             name = "Cycles",
-            description = "Rapid cyclical gravity shifts. Jump between ceiling and floor at high velocity.",
+            description = "Spinning sawblades and tight ship caverns test your navigation skills.",
+            difficulty = Difficulty.HARD,
+            stars = 6,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 1,
+            bgColor = 0xFF0D1B2A,
+            groundColor = 0xFF1B263B,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 1800L
+        )
+    }
+
+    // 10. XSTEP (Hard 6★) - 275 units long (~26.5s)
+    private fun createXStep(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.addOrbSequence(ObjectType.ORB_BLUE, orbY = 1.8f)
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
+        b.add(ObjectType.COIN, 3.5f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_RED, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 70f, clearance = 4f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.8f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_DASH, orbY = 2f)
+        b.addPlatform(length = 6, y = 2f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_xstep",
+            name = "xStep",
+            description = "Blue gravity rings, breakable rhythm blocks, and dynamic color shifts.",
+            difficulty = Difficulty.HARD,
+            stars = 6,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 3,
+            bgColor = 0xFF140D2A,
+            groundColor = 0xFF24154A,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 1900L
+        )
+    }
+
+    // 11. CLUTTERFUNK (Harder 7★) - 280 units long (~27s)
+    private fun createClutterfunk(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.SAWBLADE_GIANT, 2f, advanceAfter = 8f)
+        b.addPlatform(length = 5, y = 1.5f)
+        b.add(ObjectType.COIN, 3.6f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_PURPLE, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 75f, clearance = 3.8f, hasObstacles = true)
+        b.add(ObjectType.COIN, 4f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_RED, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_RED, orbY = 2.2f)
+        b.addPlatform(length = 7, y = 2f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_clutterfunk",
+            name = "Clutterfunk",
+            description = "High octane hazard density! Giant spinning saws and chaotic beat drops.",
+            difficulty = Difficulty.HARDER,
+            stars = 7,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 2,
+            bgColor = 0xFF220A10,
+            groundColor = 0xFF3D101C,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2000L
+        )
+    }
+
+    // 12. THEORY OF EVERYTHING (Harder 8★) - 285 units long (~27.5s)
+    private fun createTheoryOfEverything(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.addPlatform(length = 6, y = 1.5f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 2f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 80f, clearance = 4f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.5f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_RAINBOW, orbY = 2.2f)
+        b.addPlatform(length = 8, y = 1.8f)
+        b.add(ObjectType.COIN, 3.6f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_theory_of_everything",
+            name = "Theory of Everything",
+            description = "The philosophical masterpiece of geometry, flight, and timing.",
+            difficulty = Difficulty.HARDER,
+            stars = 8,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 1,
+            bgColor = 0xFF051821,
+            groundColor = 0xFF0D3244,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2100L
+        )
+    }
+
+    // 13. ELECTROMAN (Harder 8★) - 290 units long (~28s)
+    private fun createElectroman(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.PORTAL_SPEED_2X, 1f, advanceAfter = 4f)
+        b.addPlatform(length = 6, y = 1.5f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_ORANGE, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 80f, clearance = 4f, hasObstacles = true)
+        b.add(ObjectType.COIN, 4f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_GREEN, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_DASH, orbY = 2f)
+        b.addPlatform(length = 8, y = 1.5f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_electroman",
+            name = "Electroman Adventures",
+            description = "Electro synth beats with breakable platforms and razor-sharp spikes.",
+            difficulty = Difficulty.HARDER,
+            stars = 8,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 2,
+            bgColor = 0xFF1F1200,
+            groundColor = 0xFF3D2400,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2200L
+        )
+    }
+
+    // 14. CLUBSTEP (Insane 9★) - 295 units long (~28.5s)
+    private fun createClubstep(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.TRIGGER_BG_RED, 0.5f, advanceAfter = 2f)
+        b.addPlatform(length = 6, y = 1.5f)
+        b.add(ObjectType.SAWBLADE_GIANT, 2.5f, advanceAfter = 8f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 1
+
+        b.addShipSection(lengthUnits = 85f, clearance = 3.6f, hasObstacles = true)
+        b.add(ObjectType.COIN, 4f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_BLACK, orbY = 2f)
+        b.addPlatform(length = 8, y = 2f)
+        b.add(ObjectType.COIN, 4.2f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_clubstep",
+            name = "Clubstep",
+            description = "The original Demon challenge! Infernal ship corridors and demon faces.",
+            difficulty = Difficulty.INSANE,
+            stars = 9,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 2,
+            bgColor = 0xFF2A0000,
+            groundColor = 0xFF4A0000,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2300L
+        )
+    }
+
+    // 15. ELECTRODYNAMIX (Insane 9★) - 300 units long (~29s)
+    private fun createElectrodynamix(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.PORTAL_SPEED_3X, 1f, advanceAfter = 4f)
+        b.addPlatform(length = 6, y = 1.5f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 90f, clearance = 3.8f, hasObstacles = true)
+        b.add(ObjectType.COIN, 4f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_PURPLE, 0.5f, advanceAfter = 3f)
+        b.add(ObjectType.PORTAL_SPEED_2X, 1f, advanceAfter = 4f)
+        b.addOrbSequence(ObjectType.ORB_RAINBOW, orbY = 2f)
+        b.addPlatform(length = 8, y = 1.5f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_electrodynamix",
+            name = "Electrodynamix",
+            description = "Insane 3x speed bursts and razor-sharp ship navigation through neon storms.",
+            difficulty = Difficulty.INSANE,
+            stars = 9,
+            author = "RobTop / GeoDash",
+            isCustom = false,
+            musicTrack = 2,
+            bgColor = 0xFF0D0A2A,
+            groundColor = 0xFF1E1452,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2400L
+        )
+    }
+
+    // 16. HEXAGON FORCE (Insane 9★) - 305 units long (~29.5s)
+    private fun createHexagonForce(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.addPlatform(length = 6, y = 1.5f)
+        b.addOrbSequence(ObjectType.ORB_GREEN, orbY = 2f)
+        b.add(ObjectType.COIN, 3.8f) // Coin 1
+
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 90f, clearance = 3.8f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.5f) // Coin 2
+
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_DASH, orbY = 2f)
+        b.addPlatform(length = 8, y = 1.8f)
+        b.add(ObjectType.COIN, 4f) // Coin 3
+        b.advance(20f)
+
+        return Level(
+            id = "main_hexagon_force",
+            name = "Hexagon Force",
+            description = "Dual portals and slope platforming across intricate geometric grids.",
             difficulty = Difficulty.INSANE,
             stars = 9,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 3,
-            bgColor = 0xFF191D32,
-            groundColor = 0xFF282F44,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Time Machine or 22 Stars",
-            createdAt = 1800L
+            bgColor = 0xFF001B2E,
+            groundColor = 0xFF003049,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2500L
         )
     }
 
-    // 10. XSTEP (NEW - Insane 10★)
-    private fun createXStep(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+    // 17. BLAST PROCESSING (Normal 4★ - accessible fun wave/ship) - 300 units long (~29s)
+    private fun createBlastProcessing(): Level {
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.TRIGGER_BG_CYAN, 0.5f, advanceAfter = 2f)
+        b.addPlatform(length = 7, y = 1.5f)
+        b.addJumpPadOverHazard(ObjectType.PAD_YELLOW, ObjectType.SPIKE_DUAL)
+        b.add(ObjectType.COIN, 3.8f) // Coin 1
 
-        // Fast pad combinations and sawblades
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_PINK))
-        objects.add(GameObject(x = x + 1.8f, y = 1.5f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 4.2f, y = 3.5f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 5.5f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        objects.add(GameObject(x = x + 4.2f, y = 4.8f, type = ObjectType.COIN)) // Coin 1
-        x += 10f
+        b.add(ObjectType.TRIGGER_BG_GREEN, 0.5f, advanceAfter = 3f)
+        b.addShipSection(lengthUnits = 90f, clearance = 4.5f, hasObstacles = false)
+        b.add(ObjectType.COIN, 3.6f) // Coin 2
 
-        // Floating neon outline blocks over sawblade sea
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + (i * 2.2f), y = 2.0f, type = ObjectType.BLOCK_OUTLINE))
-            objects.add(GameObject(x = x + (i * 2.2f), y = 0f, type = ObjectType.SAWBLADE_MEDIUM))
-        }
-        x += 14f
-
-        // Speed 2x portal sprint
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_SPEED_2X))
-        x += 4f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SAWBLADE_LARGE))
-        objects.add(GameObject(x = x + 2.5f, y = 4.2f, type = ObjectType.COIN)) // Coin 2
-        x += 9f
+        b.add(ObjectType.TRIGGER_BG_ORANGE, 0.5f, advanceAfter = 3f)
+        b.addOrbSequence(ObjectType.ORB_YELLOW, orbY = 2f)
+        b.addPlatform(length = 8, y = 1.5f)
+        b.add(ObjectType.COIN, 3.5f) // Coin 3
+        b.advance(20f)
 
         return Level(
-            id = "main_xstep",
-            name = "xStep",
-            description = "High octane pad combos, suspended floating steps, and spinning sawblades.",
-            difficulty = Difficulty.INSANE,
-            stars = 10,
-            author = "RobTop / GeoDash",
-            isCustom = false,
-            musicTrack = 0,
-            bgColor = 0xFF0D2818,
-            groundColor = 0xFF04471C,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Cycles or 26 Stars",
-            createdAt = 1900L
-        )
-    }
-
-    // 11. CLUTTERFUNK (NEW - Insane 11★)
-    private fun createClutterfunk(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
-
-        // Frantic rhythm with sawblade gauntlets
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SAWBLADE_MEDIUM))
-        x += 4.5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-
-        // Rapid small leaps
-        for (i in 0..3) {
-            objects.add(GameObject(x = x + (i * 2.0f), y = 1.2f, type = ObjectType.HALF_BLOCK))
-            objects.add(GameObject(x = x + (i * 2.0f), y = 0f, type = ObjectType.SPIKE_SMALL))
-        }
-        x += 10f
-
-        // Red Mega Orb into Black Slam Orb combo!
-        objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.ORB_RED))
-        objects.add(GameObject(x = x + 2.4f, y = 4.5f, type = ObjectType.ORB_BLACK))
-        objects.add(GameObject(x = x + 3.8f, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 2.4f, y = 5.8f, type = ObjectType.COIN)) // Coin 1
-        objects.add(GameObject(x = x + 5.0f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 11f
-
-        // Tight ship flying through saw maze
-        objects.add(GameObject(x = x, y = 2.5f, type = ObjectType.PORTAL_SHIP))
-        x += 5f
-        for (i in 0..5) {
-            val ySaw = if (i % 2 == 0) 1f else 4f
-            objects.add(GameObject(x = x + (i * 4f), y = ySaw, type = ObjectType.SAWBLADE_MEDIUM))
-        }
-        objects.add(GameObject(x = x + 10f, y = 2.6f, type = ObjectType.COIN)) // Coin 2
-        x += 28f
-
-        // Return to Cube
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        x += 5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-
-        return Level(
-            id = "main_clutterfunk",
-            name = "Clutterfunk",
-            description = "Frantic industrial techno gauntlet. Precision miniature leaps and sawblade mazes.",
-            difficulty = Difficulty.INSANE,
-            stars = 11,
-            author = "RobTop / GeoDash",
-            isCustom = false,
-            musicTrack = 2,
-            bgColor = 0xFF2B0909,
-            groundColor = 0xFF590D0D,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on xStep or 30 Stars",
-            createdAt = 2000L
-        )
-    }
-
-    // 12. THEORY OF EVERYTHING (NEW - Insane 12★)
-    private fun createTheoryOfEverything(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
-
-        // Multi-portal sequence
-        objects.add(GameObject(x = x, y = 1.5f, type = ObjectType.PORTAL_SPEED_2X))
-        x += 4f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_YELLOW))
-        objects.add(GameObject(x = x + 2.5f, y = 2.8f, type = ObjectType.ORB_GREEN))
-        objects.add(GameObject(x = x + 4.5f, y = 5.2f, type = ObjectType.SPIKE_HANGING))
-        objects.add(GameObject(x = x + 5.5f, y = 4.2f, type = ObjectType.COIN)) // Coin 1
-        objects.add(GameObject(x = x + 6.5f, y = 0f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        x += 12f
-
-        // Neon outline pillars & saw hazards
-        for (i in 0..3) {
-            objects.add(GameObject(x = x + (i * 3.5f), y = 2.0f, type = ObjectType.BLOCK_OUTLINE))
-            objects.add(GameObject(x = x + (i * 3.5f), y = 0f, type = ObjectType.SAWBLADE_LARGE))
-        }
-        x += 16f
-
-        // Tight ship navigation corridor
-        objects.add(GameObject(x = x, y = 3f, type = ObjectType.PORTAL_SHIP))
-        x += 5f
-        for (i in 0..5) {
-            val yOffset = if (i % 2 == 0) 1.2f else 3.2f
-            objects.add(GameObject(x = x + (i * 4f), y = yOffset, type = ObjectType.SPIKE_SMALL))
-            objects.add(GameObject(x = x + (i * 4f), y = yOffset + 3.0f, type = ObjectType.SPIKE_HANGING))
-        }
-        objects.add(GameObject(x = x + 10f, y = 2.6f, type = ObjectType.COIN)) // Coin 2
-        x += 28f
-
-        // Final Cube Sprint with Triple Spikes
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        x += 5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-
-        return Level(
-            id = "main_theory_of_everything",
-            name = "Theory of Everything",
-            description = "A cosmic puzzle of fast portal transitions, reverse gravity, and ship flight.",
-            difficulty = Difficulty.INSANE,
-            stars = 12,
+            id = "main_blast_processing",
+            name = "Blast Processing",
+            description = "BWOMP! Smooth accessible flow with wide ship flight and rewarding rhythm.",
+            difficulty = Difficulty.NORMAL,
+            stars = 4,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 3,
-            bgColor = 0xFF0B132B,
-            groundColor = 0xFF1C2541,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Clutterfunk or 35 Stars",
-            createdAt = 2100L
+            bgColor = 0xFF002920,
+            groundColor = 0xFF004D3C,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2600L
         )
     }
 
-    // 13. ELECTROMAN ADVENTURES (NEW - Insane 10★)
-    private fun createElectroman(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
-
-        // Rotating saw gauntlet with red pads
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 1.0f, type = ObjectType.SAWBLADE_LARGE))
-        objects.add(GameObject(x = x + 5.2f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        objects.add(GameObject(x = x + 2.5f, y = 4.2f, type = ObjectType.COIN)) // Coin 1
-        x += 10f
-
-        // Black slam orb timing
-        objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_RED))
-        objects.add(GameObject(x = x + 2.4f, y = 4.6f, type = ObjectType.ORB_BLACK))
-        objects.add(GameObject(x = x + 3.6f, y = 0f, type = ObjectType.BLOCK))
-        objects.add(GameObject(x = x + 4.8f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        x += 9.5f
-
-        // Rapid sawblade field
-        for (i in 0..4) {
-            objects.add(GameObject(x = x + (i * 2.8f), y = 0f, type = ObjectType.SAWBLADE_MEDIUM))
-            objects.add(GameObject(x = x + (i * 2.8f), y = 3.5f, type = ObjectType.HALF_BLOCK))
-        }
-        x += 16f
-
-        // Triple spike finish
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-
-        return Level(
-            id = "main_electroman",
-            name = "Electroman Adventures",
-            description = "Electrifying sawblade fields, high vertical leaps, and black orb drops.",
-            difficulty = Difficulty.INSANE,
-            stars = 10,
-            author = "RobTop / GeoDash",
-            isCustom = false,
-            musicTrack = 1,
-            bgColor = 0xFF240046,
-            groundColor = 0xFF3C096C,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Theory of Everything or 40 Stars",
-            createdAt = 2200L
-        )
-    }
-
-    // 14. CLUBSTEP (Official Demon 14★)
-    private fun createClubstep(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
-
-        // Speed 2x intro with triple spike
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_SPEED_2X))
-        x += 4f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 7f
-
-        // Precise airborne orb combos
-        objects.add(GameObject(x = x, y = 1.6f, type = ObjectType.ORB_PINK))
-        objects.add(GameObject(x = x + 1.8f, y = 2.4f, type = ObjectType.ORB_YELLOW))
-        objects.add(GameObject(x = x + 1.8f, y = 3.8f, type = ObjectType.COIN)) // Coin 1
-        objects.add(GameObject(x = x + 2.8f, y = 0f, type = ObjectType.SPIKE_DUAL))
-        objects.add(GameObject(x = x + 4.0f, y = 1.8f, type = ObjectType.ORB_BLUE)) // Flip to ceiling!
-        x += 9f
-
-        // Upside-down demon teeth
-        for (i in 0..5) {
-            objects.add(GameObject(x = x + (i * 1.5f), y = 7f, type = ObjectType.BLOCK_DARK))
-            objects.add(GameObject(x = x + (i * 1.5f), y = 6f, type = ObjectType.SPIKE_HANGING))
-            objects.add(GameObject(x = x + (i * 1.5f), y = 0f, type = ObjectType.SPIKE))
-        }
-        x += 12f
-
-        // Ship Demon Flight through narrow corridors
-        objects.add(GameObject(x = x, y = 3f, type = ObjectType.PORTAL_SHIP))
-        x += 5f
-
-        for (step in 0..6) {
-            val yOffset = if (step % 2 == 0) 1.2f else 3.2f
-            objects.add(GameObject(x = x + (step * 4.5f), y = yOffset, type = ObjectType.SAWBLADE_MEDIUM))
-            objects.add(GameObject(x = x + (step * 4.5f), y = yOffset + 3.2f, type = ObjectType.SPIKE_HANGING))
-        }
-        objects.add(GameObject(x = x + 9f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 20f, y = 2.2f, type = ObjectType.COIN)) // Coin 3
-        x += 34f
-
-        // Final Cube Sprint with Quad Spikes!
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        objects.add(GameObject(x = x + 1.5f, y = 2f, type = ObjectType.PORTAL_GRAVITY_NORMAL))
-        x += 5f
-
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE_FOUR))
-        x += 8f
-
-        return Level(
-            id = "main_clubstep",
-            name = "Clubstep",
-            description = "The legendary Demon test. Monster jaws, tight 1.8-gap flight corridors, and relentless spikes.",
-            difficulty = Difficulty.DEMON,
-            stars = 14,
-            author = "RobTop / GeoDash",
-            isCustom = false,
-            musicTrack = 2,
-            bgColor = 0xFF1F0303,
-            groundColor = 0xFF3D0606,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Earn 50% on Electroman Adventures or 45 Stars",
-            createdAt = 6000L
-        )
-    }
-
-    // 15. DEADLOCKED (NEW - Extreme Demon 15★)
+    // 18. DEADLOCKED (Demon 10★) - 310 units long (~30s)
     private fun createDeadlocked(): Level {
-        val objects = mutableListOf<GameObject>()
-        var x = 8f
+        val b = LevelBuilder(cursorX = 10f)
+        b.add(ObjectType.TRIGGER_BG_RED, 0.5f, advanceAfter = 2f)
+        b.add(ObjectType.PORTAL_SPEED_3X, 1f, advanceAfter = 4f)
+        b.add(ObjectType.SAWBLADE_GIANT, 2f, advanceAfter = 8f)
+        b.add(ObjectType.COIN, 4f) // Coin 1
 
-        // 3x Hyperspeed Portal Opening!
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_SPEED_3X))
-        x += 4f
+        b.addShipSection(lengthUnits = 95f, clearance = 3.5f, hasObstacles = true)
+        b.add(ObjectType.COIN, 3.8f) // Coin 2
 
-        // Hyperspeed triple spike leaps
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 9f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 9f
-
-        // Red Mega Pad launch over giant dual sawblades
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 1.0f, type = ObjectType.SAWBLADE_LARGE))
-        objects.add(GameObject(x = x + 4.5f, y = 1.0f, type = ObjectType.SAWBLADE_LARGE))
-        objects.add(GameObject(x = x + 3.5f, y = 4.8f, type = ObjectType.COIN)) // Coin 1
-        objects.add(GameObject(x = x + 7.5f, y = 0f, type = ObjectType.BLOCK_DARK))
-        x += 12f
-
-        // Black Slam Orb micro-landing
-        objects.add(GameObject(x = x, y = 1.8f, type = ObjectType.ORB_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 5.0f, type = ObjectType.ORB_BLACK))
-        objects.add(GameObject(x = x + 3.8f, y = 0f, type = ObjectType.HALF_BLOCK))
-        objects.add(GameObject(x = x + 5.2f, y = 0f, type = ObjectType.SPIKE_FOUR))
-        x += 11f
-
-        // Extreme Demon Ship Corridor at 3x speed!
-        objects.add(GameObject(x = x, y = 3f, type = ObjectType.PORTAL_SHIP))
-        x += 5f
-        for (i in 0..7) {
-            val yOffset = if (i % 2 == 0) 1.2f else 3.0f
-            objects.add(GameObject(x = x + (i * 4.8f), y = yOffset, type = ObjectType.SAWBLADE_LARGE))
-            objects.add(GameObject(x = x + (i * 4.8f), y = yOffset + 3.5f, type = ObjectType.SPIKE_HANGING))
-        }
-        objects.add(GameObject(x = x + 12f, y = 2.8f, type = ObjectType.COIN)) // Coin 2
-        objects.add(GameObject(x = x + 28f, y = 2.2f, type = ObjectType.COIN)) // Coin 3
-        x += 44f
-
-        // Final Cube Hyperspeed Gauntlet
-        objects.add(GameObject(x = x, y = 2f, type = ObjectType.PORTAL_CUBE))
-        x += 5f
-        objects.add(GameObject(x = x, y = 0f, type = ObjectType.PAD_RED))
-        objects.add(GameObject(x = x + 2.5f, y = 0f, type = ObjectType.SPIKE_FOUR))
-        objects.add(GameObject(x = x + 6.8f, y = 0f, type = ObjectType.SPIKE_TRIPLE))
-        x += 12f
+        b.add(ObjectType.TRIGGER_BG_DARK, 0.5f, advanceAfter = 3f)
+        b.add(ObjectType.PORTAL_SPEED_2X, 1f, advanceAfter = 4f)
+        b.addOrbSequence(ObjectType.ORB_BLACK, orbY = 2.2f)
+        b.addOrbSequence(ObjectType.ORB_RAINBOW, orbY = 2.4f)
+        b.addPlatform(length = 9, y = 2f)
+        b.add(ObjectType.COIN, 4.5f) // Coin 3
+        b.advance(20f)
 
         return Level(
             id = "main_deadlocked",
             name = "Deadlocked",
-            description = "The ultimate test of human reflexes. 3x hyperspeed, dual rotating sawblades, and razor-sharp ship control.",
+            description = "The ultimate Demon showdown! Rapid speed changes, tight ship waves, and monster hazards.",
             difficulty = Difficulty.DEMON,
-            stars = 15,
+            stars = 10,
             author = "RobTop / GeoDash",
             isCustom = false,
             musicTrack = 2,
-            bgColor = 0xFF1A0000,
-            groundColor = 0xFF4D0000,
-            objects = objects,
-            isUnlocked = false,
-            unlockRequirement = "Conquer Clubstep or earn 50 Stars",
-            createdAt = 7000L
+            bgColor = 0xFF2B0000,
+            groundColor = 0xFF450000,
+            objects = b.objects,
+            isUnlocked = true,
+            createdAt = 2700L
         )
     }
 }

@@ -10,7 +10,6 @@ import com.example.model.GameObject
 import com.example.model.Level
 import com.example.model.ObjectCategory
 import com.example.model.ObjectType
-import kotlin.math.floor
 import kotlin.math.round
 
 enum class EditorTool {
@@ -28,6 +27,12 @@ class LevelEditorState(initialLevel: Level? = null) {
     var bgColor by mutableStateOf(initialLevel?.bgColor ?: 0xFF0D1117)
     var groundColor by mutableStateOf(initialLevel?.groundColor ?: 0xFF003366)
 
+    // Option to place blocks between grids (off by default as requested)
+    var enableBlockBetweenGrids by mutableStateOf(false)
+
+    // Custom level length for long levels (default 600m, expandable to 2500m+)
+    var customLevelLength by mutableFloatStateOf(600f)
+
     val objects = mutableStateListOf<GameObject>().apply {
         if (initialLevel != null) {
             addAll(initialLevel.objects)
@@ -38,20 +43,28 @@ class LevelEditorState(initialLevel: Level? = null) {
     var selectedType by mutableStateOf(ObjectType.BLOCK)
     var activeTool by mutableStateOf(EditorTool.PLACE)
 
-    // Viewport scrolling & zooming
+    // Viewport scrolling & zooming (extended range: 0.35x to 2.2x)
     var scrollX by mutableFloatStateOf(0f)
     var zoomScale by mutableFloatStateOf(1.0f)
     var snapIncrement by mutableFloatStateOf(0.5f)
 
-    val maxObjectX: Float get() = objects.maxOfOrNull { it.x } ?: 0f
-    val levelEstimatedLength: Float get() = (maxObjectX + 20f).coerceAtLeast(60f)
+    val effectiveSnap: Float
+        get() = if (enableBlockBetweenGrids) snapIncrement else 1.0f
+
+    val maxObjectX: Float get() = objects.maxOfOrNull { it.x + it.type.width } ?: 0f
+    val levelEstimatedLength: Float
+        get() = maxOf(customLevelLength, maxObjectX + 80f, 300f)
 
     fun zoomIn() {
-        zoomScale = (zoomScale + 0.15f).coerceAtMost(1.75f)
+        zoomScale = (zoomScale + 0.15f).coerceAtMost(2.2f)
     }
 
     fun zoomOut() {
-        zoomScale = (zoomScale - 0.15f).coerceAtLeast(0.65f)
+        zoomScale = (zoomScale - 0.15f).coerceAtLeast(0.35f)
+    }
+
+    fun setZoom(scale: Float) {
+        zoomScale = scale.coerceIn(0.35f, 2.2f)
     }
 
     fun jumpToStart() {
@@ -68,7 +81,7 @@ class LevelEditorState(initialLevel: Level? = null) {
 
     fun pushHistory() {
         undoStack.add(objects.toList())
-        if (undoStack.size > 30) undoStack.removeAt(0)
+        if (undoStack.size > 40) undoStack.removeAt(0)
         redoStack.clear()
     }
 
@@ -94,18 +107,19 @@ class LevelEditorState(initialLevel: Level? = null) {
     val canRedo: Boolean get() = redoStack.isNotEmpty()
 
     fun onGridTapped(rawGridX: Float, rawGridY: Float) {
-        val snappedX = (round(rawGridX / snapIncrement) * snapIncrement).coerceAtLeast(0f)
-        val snappedY = (round(rawGridY / snapIncrement) * snapIncrement).coerceIn(0f, 8f)
+        val snap = effectiveSnap
+        val snappedX = (round(rawGridX / snap) * snap).coerceAtLeast(0f)
+        val snappedY = (round(rawGridY / snap) * snap).coerceIn(0f, 8f)
 
         if (activeTool == EditorTool.PLACE) {
             pushHistory()
-            // Remove any overlapping object at exact position
-            objects.removeAll { abs(it.x - snappedX) < 0.25f && abs(it.y - snappedY) < 0.25f }
+            val removeRadius = (snap * 0.45f).coerceAtLeast(0.2f)
+            objects.removeAll { abs(it.x - snappedX) < removeRadius && abs(it.y - snappedY) < removeRadius }
             objects.add(GameObject(x = snappedX, y = snappedY, type = selectedType))
         } else if (activeTool == EditorTool.ERASE) {
             val target = objects.firstOrNull {
-                snappedX >= it.x && snappedX <= it.x + it.type.width &&
-                        snappedY >= it.y && snappedY <= it.y + it.type.height
+                snappedX >= it.x - 0.1f && snappedX <= it.x + it.type.width + 0.1f &&
+                        snappedY >= it.y - 0.1f && snappedY <= it.y + it.type.height + 0.1f
             }
             if (target != null) {
                 pushHistory()

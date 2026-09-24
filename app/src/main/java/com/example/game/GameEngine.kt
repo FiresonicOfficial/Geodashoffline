@@ -20,7 +20,9 @@ data class Checkpoint(
     val gravity: Float,
     val mode: PlayerGameMode,
     val speed: Float,
-    val rotation: Float
+    val rotation: Float,
+    val bgColor: Long,
+    val groundColor: Long
 )
 
 data class Particle(
@@ -53,10 +55,16 @@ class GameEngine(
     var playerVy: Float = 0f
     var gravityDirection: Float = 1f // 1 = down, -1 = up
     var gameMode: PlayerGameMode = PlayerGameMode.CUBE
-    var speedMultiplier: Float = 10.5f // units per second
+    var speedMultiplier: Float = 10.4f // authentic 1x GD speed (blocks/s)
     var playerRotation: Float = 0f
     var isOnGround: Boolean = true
     var isHolding: Boolean = false
+
+    // Real-time Background and Ground colors (modified by Color Triggers!)
+    var currentBgColor: Long = level.bgColor
+    var currentGroundColor: Long = level.groundColor
+    var targetBgColor: Long = level.bgColor
+    var targetGroundColor: Long = level.groundColor
 
     // Game progress
     var isDead: Boolean = false
@@ -65,6 +73,8 @@ class GameEngine(
     var attemptsCount: Int = 1
     var jumpsCount: Int = 0
     val collectedCoinIds = mutableSetOf<Long>()
+    private val activatedTriggerIds = mutableSetOf<Long>()
+    private var lastActivatedOrbId: Long = -1L
 
     // Checkpoints for Practice Mode
     val checkpoints = mutableListOf<Checkpoint>()
@@ -74,7 +84,7 @@ class GameEngine(
     val orbRingEffects = mutableListOf<OrbRing>()
     var sawRotation: Float = 0f
 
-    // Pre-sorted objects for ultra-fast spatial queries
+    // Pre-sorted objects for spatial queries
     val sortedObjects: List<GameObject> = level.objects.sortedBy { it.x }
 
     // Level bounds
@@ -85,7 +95,7 @@ class GameEngine(
     // Death delay timer
     private var deathTimer: Float = 0f
 
-    // Fixed timestep physics accumulator for silky smooth 60/90/120 FPS
+    // Fixed timestep physics accumulator
     private var physicsAccumulator: Float = 0f
 
     init {
@@ -102,11 +112,16 @@ class GameEngine(
             gameMode = cp.mode
             speedMultiplier = cp.speed
             playerRotation = cp.rotation
+            currentBgColor = cp.bgColor
+            currentGroundColor = cp.groundColor
+            targetBgColor = cp.bgColor
+            targetGroundColor = cp.groundColor
             isDead = false
             isOnGround = false
             isHolding = false
             deathTimer = 0f
             physicsAccumulator = 0f
+            lastActivatedOrbId = -1L
             return
         }
 
@@ -115,13 +130,19 @@ class GameEngine(
         playerVy = 0f
         gravityDirection = 1f
         gameMode = PlayerGameMode.CUBE
-        speedMultiplier = 10.5f
+        speedMultiplier = 10.4f
         playerRotation = 0f
         isOnGround = true
         isDead = false
         isHolding = false
         deathTimer = 0f
         physicsAccumulator = 0f
+        currentBgColor = level.bgColor
+        currentGroundColor = level.groundColor
+        targetBgColor = level.bgColor
+        targetGroundColor = level.groundColor
+        activatedTriggerIds.clear()
+        lastActivatedOrbId = -1L
 
         if (!softReset) {
             collectedCoinIds.clear()
@@ -138,7 +159,9 @@ class GameEngine(
                 gravity = gravityDirection,
                 mode = gameMode,
                 speed = speedMultiplier,
-                rotation = playerRotation
+                rotation = playerRotation,
+                bgColor = targetBgColor,
+                groundColor = targetGroundColor
             )
         )
         GameAudioEngine.playCheckpoint()
@@ -155,7 +178,7 @@ class GameEngine(
         isHolding = true
 
         if (gameMode == PlayerGameMode.CUBE) {
-            // Check for tap inside jump orb radius first!
+            // Check for tap inside jump orb radius
             val tappedOrb = checkOrbTrigger()
             if (tappedOrb != null) {
                 activateOrb(tappedOrb)
@@ -173,7 +196,7 @@ class GameEngine(
         isHolding = false
     }
 
-    private fun performJump(force: Float = 17.5f) {
+    private fun performJump(force: Float = 19.5f) {
         playerVy = -force * gravityDirection
         isOnGround = false
         jumpsCount++
@@ -218,16 +241,17 @@ class GameEngine(
     }
 
     private fun activateOrb(orb: GameObject) {
+        lastActivatedOrbId = orb.id
         orbRingEffects.add(OrbRing(orb.x + 0.5f, orb.y + 0.5f, 0.2f))
         when (orb.type) {
             ObjectType.ORB_YELLOW -> {
-                playerVy = -18f * gravityDirection
+                playerVy = -19.5f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playOrb()
             }
             ObjectType.ORB_PINK -> {
-                playerVy = -13f * gravityDirection
+                playerVy = -14f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playOrb()
@@ -241,27 +265,33 @@ class GameEngine(
             }
             ObjectType.ORB_GREEN -> {
                 gravityDirection = -gravityDirection
-                playerVy = -17f * gravityDirection
+                playerVy = -19f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playGravity()
                 GameAudioEngine.playOrb()
             }
             ObjectType.ORB_RED -> {
-                playerVy = -23f * gravityDirection
+                playerVy = -24f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playOrb()
             }
             ObjectType.ORB_BLACK -> {
-                playerVy = 22f * gravityDirection
+                playerVy = 24f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playOrb()
             }
             ObjectType.ORB_DASH -> {
-                playerVy = -6f * gravityDirection
+                playerVy = -5f * gravityDirection
                 playerX += 2.2f
+                isOnGround = false
+                jumpsCount++
+                GameAudioEngine.playOrb()
+            }
+            ObjectType.ORB_RAINBOW -> {
+                playerVy = -21f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playOrb()
@@ -307,7 +337,7 @@ class GameEngine(
             percentage = progress
         }
 
-        // Win condition: reached end of level!
+        // Win condition
         if (playerX >= levelLength - 5f) {
             isWon = true
             percentage = 100
@@ -318,6 +348,14 @@ class GameEngine(
 
         // Advance horizontally
         playerX += speedMultiplier * dt
+
+        // Check for buffer orb tap when holding
+        if (isHolding && gameMode == PlayerGameMode.CUBE) {
+            val orb = checkOrbTrigger()
+            if (orb != null && orb.id != lastActivatedOrbId) {
+                activateOrb(orb)
+            }
+        }
 
         // Physics based on Game Mode
         if (gameMode == PlayerGameMode.CUBE) {
@@ -330,8 +368,31 @@ class GameEngine(
         checkObjectCollisions()
     }
 
+    private fun lerpColor(c1: Long, c2: Long, factor: Float): Long {
+        val a1 = ((c1 shr 24) and 0xFF).toFloat()
+        val r1 = ((c1 shr 16) and 0xFF).toFloat()
+        val g1 = ((c1 shr 8) and 0xFF).toFloat()
+        val b1 = (c1 and 0xFF).toFloat()
+
+        val a2 = ((c2 shr 24) and 0xFF).toFloat()
+        val r2 = ((c2 shr 16) and 0xFF).toFloat()
+        val g2 = ((c2 shr 8) and 0xFF).toFloat()
+        val b2 = (c2 and 0xFF).toFloat()
+
+        val a = (a1 + (a2 - a1) * factor).toLong().coerceIn(0L, 255L)
+        val r = (r1 + (r2 - r1) * factor).toLong().coerceIn(0L, 255L)
+        val g = (g1 + (g2 - g1) * factor).toLong().coerceIn(0L, 255L)
+        val b = (b1 + (b2 - b1) * factor).toLong().coerceIn(0L, 255L)
+
+        return (a shl 24) or (r shl 16) or (g shl 8) or b
+    }
+
     private fun updateVisualEffects(dt: Float) {
-        sawRotation = (sawRotation + 320f * dt) % 360f
+        sawRotation = (sawRotation + 340f * dt) % 360f
+
+        // Smooth background & ground color transition from triggers
+        currentBgColor = lerpColor(currentBgColor, targetBgColor, (dt * 6f).coerceAtMost(1f))
+        currentGroundColor = lerpColor(currentGroundColor, targetGroundColor, (dt * 6f).coerceAtMost(1f))
 
         // Trail particles
         if (!isDead && !isWon && Random.nextFloat() < 0.45f && particles.size < 40) {
@@ -363,7 +424,7 @@ class GameEngine(
             p.alpha = (1f - (p.life / p.maxLife)).coerceIn(0f, 1f)
         }
 
-        // In-place update of orb ring ripple effects without allocations
+        // Orb ring ripple effects
         val rIt = orbRingEffects.iterator()
         while (rIt.hasNext()) {
             val ring = rIt.next()
@@ -375,10 +436,11 @@ class GameEngine(
     }
 
     private fun updateCubePhysics(dt: Float) {
-        val gravity = 46f * gravityDirection
+        // Authentic GD Cube Gravity
+        val gravity = 52f * gravityDirection
         playerVy += gravity * dt
 
-        // Continuous jump on hold
+        // Continuous buffer jump on hold
         if (isHolding && isOnGround) {
             performJump()
         }
@@ -397,7 +459,7 @@ class GameEngine(
                 playerRotation += 420f * dt
             }
         } else {
-            // Upside down floor is at ceilingY
+            // Upside down floor
             if (playerY >= ceilingY - 1f) {
                 playerY = ceilingY - 1f
                 playerVy = 0f
@@ -411,22 +473,23 @@ class GameEngine(
     }
 
     private fun updateShipPhysics(dt: Float) {
-        val shipAccel = 28f
-        val shipGravity = 22f
+        // Authentic GD Ship Flight Physics
+        val shipAccel = 24f
+        val shipGravity = 20f
 
         if (isHolding) {
             playerVy -= shipAccel * gravityDirection * dt
         } else {
             playerVy += shipGravity * gravityDirection * dt
         }
-        playerVy = playerVy.coerceIn(-12f, 12f)
+        playerVy = playerVy.coerceIn(-9.8f, 9.8f)
         playerY -= playerVy * dt
 
         // Pitch rotation based on velocity
-        val targetRot = (-playerVy * 3.5f * gravityDirection).coerceIn(-40f, 40f)
-        playerRotation += (targetRot - playerRotation) * 0.2f
+        val targetRot = (-playerVy * 3.8f * gravityDirection).coerceIn(-35f, 35f)
+        playerRotation += (targetRot - playerRotation) * 0.22f
 
-        // Ceiling / Floor bounds for ship
+        // Ship floor and ceiling death
         if (playerY < floorY) {
             playerY = floorY
             killPlayer()
@@ -444,27 +507,47 @@ class GameEngine(
     }
 
     private fun checkObjectCollisions() {
-        val pLeft = playerX + 0.1f
-        val pRight = playerX + 0.9f
-        val pBottom = playerY + 0.05f
-        val pTop = playerY + 0.95f
+        // Realistic Geometry Dash player hitboxes
+        val pLeft = playerX + 0.22f
+        val pRight = playerX + 0.78f
+        val pBottom = playerY + 0.12f
+        val pTop = playerY + 0.88f
 
         for (obj in sortedObjects) {
-            if (obj.x < playerX - 2f) continue
-            if (obj.x > playerX + 2f) break
+            if (obj.x < playerX - 3f) continue
+            if (obj.x > playerX + 3f) break
 
             val oLeft = obj.x
             val oRight = obj.x + obj.type.width
             val oBottom = obj.y
             val oTop = obj.y + obj.type.height
 
-            // Check AABB overlap
+            // 1. Color Triggers: trigger when player crosses trigger X
+            if (obj.type.category == com.example.model.ObjectCategory.TRIGGERS) {
+                if (playerX >= obj.x - 0.2f && !activatedTriggerIds.contains(obj.id)) {
+                    activatedTriggerIds.add(obj.id)
+                    val targetColor = obj.customColorHex ?: obj.type.primaryColorHex
+                    if (obj.type.name.startsWith("TRIGGER_BG_")) {
+                        targetBgColor = targetColor
+                    } else if (obj.type.name.startsWith("TRIGGER_GROUND_")) {
+                        targetGroundColor = targetColor
+                    }
+                }
+                continue
+            }
+
+            // AABB broadphase check
             val isOverlap = pRight > oLeft && pLeft < oRight && pTop > oBottom && pBottom < oTop
             if (!isOverlap) continue
 
             when {
-                obj.type in listOf(ObjectType.SAWBLADE_LARGE, ObjectType.SAWBLADE_MEDIUM, ObjectType.SAWBLADE_SMALL) -> {
-                    // Circular collision test for rotating hazard sawblades
+                // Circular Sawblades
+                obj.type in listOf(
+                    ObjectType.SAWBLADE_GIANT,
+                    ObjectType.SAWBLADE_LARGE,
+                    ObjectType.SAWBLADE_MEDIUM,
+                    ObjectType.SAWBLADE_SMALL
+                ) -> {
                     val sCenterX = obj.x + obj.type.width * 0.5f
                     val sCenterY = obj.y + obj.type.height * 0.5f
                     val pCenterX = playerX + 0.5f
@@ -472,25 +555,56 @@ class GameEngine(
                     val dx = pCenterX - sCenterX
                     val dy = pCenterY - sCenterY
                     val distSq = (dx * dx) + (dy * dy)
-                    val lethalRadius = (obj.type.width * 0.43f) + 0.28f
+                    // Inner lethal radius with authentic margin
+                    val lethalRadius = (obj.type.width * 0.38f) + 0.18f
                     if (distSq < lethalRadius * lethalRadius) {
                         killPlayer()
                         return
                     }
                 }
 
+                // Spikes: Authentic Geometry Dash triangle hitbox check
                 obj.type.isLethal -> {
-                    // Geometry Dash fairness: tighter hitbox for spikes
-                    val insetX = 0.16f
-                    val insetY = 0.14f
-                    val sLeft = oLeft + insetX
-                    val sRight = oRight - insetX
-                    val sBottom = oBottom + insetY
-                    val sTop = oTop - insetY
+                    val isHanging = (obj.type == ObjectType.SPIKE_HANGING)
+                    val sHeight = obj.type.height
+                    val sLeft = oLeft + 0.20f
+                    val sRight = oRight - 0.20f
+                    val sBottom = oBottom + 0.06f
+                    val sTop = oTop - 0.06f
 
                     if (pRight > sLeft && pLeft < sRight && pTop > sBottom && pBottom < sTop) {
-                        killPlayer()
-                        return
+                        // Fine triangle slope check: prevents dying on empty air next to spike tip!
+                        val numSpikes = obj.type.width.toInt().coerceAtLeast(1)
+                        var hitActualSpike = false
+                        val px = (pLeft + pRight) * 0.5f
+                        val py = (pBottom + pTop) * 0.5f
+
+                        for (sIdx in 0 until numSpikes) {
+                            val subCenterX = oLeft + sIdx + 0.5f
+                            val subHalfWidth = 0.38f
+                            if (isHanging) {
+                                // Hanging upside down: apex is at bottom
+                                val relY = ((sTop - py) / sHeight).coerceIn(0f, 1f)
+                                val maxDx = subHalfWidth * (1f - (relY * 0.7f))
+                                if (abs(px - subCenterX) < maxDx) {
+                                    hitActualSpike = true
+                                    break
+                                }
+                            } else {
+                                // Ground spike: apex is at top
+                                val relY = ((py - sBottom) / sHeight).coerceIn(0f, 1f)
+                                val maxDx = subHalfWidth * (1f - (relY * 0.7f))
+                                if (abs(px - subCenterX) < maxDx) {
+                                    hitActualSpike = true
+                                    break
+                                }
+                            }
+                        }
+
+                        if (hitActualSpike) {
+                            killPlayer()
+                            return
+                        }
                     }
                 }
 
@@ -539,24 +653,30 @@ class GameEngine(
         val oLeft = obj.x
 
         if (gravityDirection > 0) {
-            // Landing on top of block
-            if (playerY >= oTop - 0.25f && playerVy >= 0) {
+            // Normal Gravity: Landing on top of block
+            if (playerY >= oTop - 0.28f && playerVy >= 0f) {
                 playerY = oTop
                 playerVy = 0f
                 isOnGround = true
                 snapRotation()
-            } else if (playerX + 0.85f > oLeft && playerY < oTop - 0.1f) {
-                // Crashed into side of block!
+                if (isHolding) {
+                    performJump()
+                }
+            } else if (playerX + 0.78f > oLeft && playerX + 0.15f < oLeft && playerY < oTop - 0.18f && playerY + 0.85f > oBottom) {
+                // Crashed into side wall of block!
                 killPlayer()
             }
         } else {
             // Inverted gravity: landing on bottom of ceiling block
-            if (playerY + 1f <= oBottom + 0.25f && playerVy <= 0) {
+            if (playerY + 1f <= oBottom + 0.28f && playerVy <= 0f) {
                 playerY = oBottom - 1f
                 playerVy = 0f
                 isOnGround = true
                 snapRotation()
-            } else if (playerX + 0.85f > oLeft && playerY + 1f > oBottom + 0.1f) {
+                if (isHolding) {
+                    performJump()
+                }
+            } else if (playerX + 0.78f > oLeft && playerX + 0.15f < oLeft && playerY + 0.82f > oBottom + 0.18f && playerY + 0.15f < oTop) {
                 killPlayer()
             }
         }
@@ -582,9 +702,15 @@ class GameEngine(
                 jumpsCount++
                 GameAudioEngine.playPad()
             }
+            ObjectType.PAD_PURPLE -> {
+                playerVy = -12f * gravityDirection
+                isOnGround = false
+                jumpsCount++
+                GameAudioEngine.playPad()
+            }
             ObjectType.PAD_GRAVITY -> {
                 gravityDirection = -gravityDirection
-                playerVy = -10f * gravityDirection
+                playerVy = -9f * gravityDirection
                 isOnGround = false
                 jumpsCount++
                 GameAudioEngine.playGravity()
@@ -622,10 +748,10 @@ class GameEngine(
                 }
             }
             ObjectType.PORTAL_SPEED_0_5X -> speedMultiplier = 8f
-            ObjectType.PORTAL_SPEED_1X -> speedMultiplier = 10.5f
-            ObjectType.PORTAL_SPEED_2X -> speedMultiplier = 14f
-            ObjectType.PORTAL_SPEED_3X -> speedMultiplier = 17.5f
-            ObjectType.PORTAL_SPEED_4X -> speedMultiplier = 21f
+            ObjectType.PORTAL_SPEED_1X -> speedMultiplier = 10.4f
+            ObjectType.PORTAL_SPEED_2X -> speedMultiplier = 13.8f
+            ObjectType.PORTAL_SPEED_3X -> speedMultiplier = 17.2f
+            ObjectType.PORTAL_SPEED_4X -> speedMultiplier = 20.8f
             else -> {}
         }
     }

@@ -42,6 +42,9 @@ data class Level(
                 item.put("x", obj.x)
                 item.put("y", obj.y)
                 item.put("t", obj.type.name)
+                if (obj.customColorHex != null) {
+                    item.put("c", obj.customColorHex)
+                }
                 jsonArray.put(item)
             }
             return jsonArray.toString()
@@ -62,7 +65,8 @@ data class Level(
                     } catch (e: Exception) {
                         ObjectType.BLOCK
                     }
-                    list.add(GameObject(x = x, y = y, type = type))
+                    val customColor = if (item.has("c")) item.getLong("c") else null
+                    list.add(GameObject(x = x, y = y, type = type, customColorHex = customColor))
                 }
             } catch (e: Exception) {
                 // Fallback empty if corrupt

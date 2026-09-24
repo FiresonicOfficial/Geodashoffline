@@ -74,7 +74,7 @@ object GameRenderer {
         width: Float,
         groundScreenY: Float
     ) {
-        val baseBg = Color(engine.level.bgColor)
+        val baseBg = Color(engine.currentBgColor)
         val pulseFactor = (beatPulse * 0.18f)
         val topColor = Color(
             red = (baseBg.red + pulseFactor).coerceIn(0f, 1f),
@@ -124,7 +124,7 @@ object GameRenderer {
         groundScreenY: Float,
         tileSize: Float
     ) {
-        val groundBaseColor = Color(engine.level.groundColor)
+        val groundBaseColor = Color(engine.currentGroundColor)
         val groundGlowColor = Color(
             red = (groundBaseColor.red + beatPulse * 0.25f).coerceIn(0f, 1f),
             green = (groundBaseColor.green + beatPulse * 0.25f).coerceIn(0f, 1f),
@@ -212,6 +212,24 @@ object GameRenderer {
                 }
             }
 
+            ObjectType.BLOCK_RAINBOW -> {
+                scope.drawRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color(0xFFFF007F), Color(0xFFFF9100), Color(0xFF00E5FF), Color(0xFF7C4DFF)),
+                        start = Offset(screenX, screenY),
+                        end = Offset(screenX + objW, screenY + objH)
+                    ),
+                    topLeft = Offset(screenX, screenY),
+                    size = Size(objW, objH)
+                )
+                scope.drawRect(
+                    color = Color.White,
+                    topLeft = Offset(screenX, screenY),
+                    size = Size(objW, objH),
+                    style = Stroke(width = 2.5f)
+                )
+            }
+
             ObjectType.BLOCK_OUTLINE -> {
                 scope.drawRect(
                     color = Color(0xFF00E5FF).copy(alpha = 0.15f),
@@ -281,13 +299,17 @@ object GameRenderer {
                 }
             }
 
-            ObjectType.SAWBLADE_LARGE, ObjectType.SAWBLADE_MEDIUM, ObjectType.SAWBLADE_SMALL -> {
+            ObjectType.SAWBLADE_GIANT, ObjectType.SAWBLADE_LARGE, ObjectType.SAWBLADE_MEDIUM, ObjectType.SAWBLADE_SMALL -> {
                 val center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
                 val radius = objW * 0.46f
 
                 // Outer teeth rotation
                 scope.rotate(sawAngle, center) {
-                    val toothCount = if (obj.type == ObjectType.SAWBLADE_LARGE) 12 else 8
+                    val toothCount = when (obj.type) {
+                        ObjectType.SAWBLADE_GIANT -> 16
+                        ObjectType.SAWBLADE_LARGE -> 12
+                        else -> 8
+                    }
                     val angleStep = 360f / toothCount
                     for (i in 0 until toothCount) {
                         rotate(i * angleStep, center) {
@@ -372,7 +394,7 @@ object GameRenderer {
                 )
             }
 
-            ObjectType.PAD_YELLOW, ObjectType.PAD_PINK, ObjectType.PAD_RED, ObjectType.PAD_GRAVITY -> {
+            ObjectType.PAD_YELLOW, ObjectType.PAD_PINK, ObjectType.PAD_RED, ObjectType.PAD_PURPLE, ObjectType.PAD_GRAVITY -> {
                 val padColor = Color(obj.type.primaryColorHex)
                 scope.drawRoundRect(
                     color = padColor,
@@ -389,7 +411,7 @@ object GameRenderer {
             }
 
             ObjectType.ORB_YELLOW, ObjectType.ORB_PINK, ObjectType.ORB_BLUE, ObjectType.ORB_GREEN,
-            ObjectType.ORB_RED, ObjectType.ORB_BLACK, ObjectType.ORB_DASH -> {
+            ObjectType.ORB_RED, ObjectType.ORB_BLACK, ObjectType.ORB_DASH, ObjectType.ORB_RAINBOW -> {
                 val orbColor = Color(obj.type.primaryColorHex)
                 val center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
                 val radius = objW * 0.45f
@@ -415,6 +437,50 @@ object GameRenderer {
                     color = if (obj.type == ObjectType.ORB_BLACK) Color(0xFFD500F9) else Color.White,
                     radius = radius * 0.25f,
                     center = center
+                )
+            }
+
+            // Triggers (Color changes for BG and Ground)
+            ObjectType.TRIGGER_BG_CYAN, ObjectType.TRIGGER_BG_PURPLE, ObjectType.TRIGGER_BG_RED,
+            ObjectType.TRIGGER_BG_DARK, ObjectType.TRIGGER_BG_GREEN, ObjectType.TRIGGER_BG_ORANGE,
+            ObjectType.TRIGGER_GROUND_BLUE, ObjectType.TRIGGER_GROUND_PURPLE, ObjectType.TRIGGER_GROUND_RED,
+            ObjectType.TRIGGER_GROUND_GREEN, ObjectType.TRIGGER_GROUND_DARK, ObjectType.TRIGGER_GROUND_GOLD -> {
+                val triggerColor = Color(obj.customColorHex ?: obj.type.primaryColorHex)
+                val isBg = obj.type.name.startsWith("TRIGGER_BG_")
+
+                // Vertical light beam
+                scope.drawLine(
+                    color = triggerColor.copy(alpha = 0.45f),
+                    start = Offset(screenX + objW * 0.5f, screenY - tileSize * 4f),
+                    end = Offset(screenX + objW * 0.5f, screenY + objH + tileSize),
+                    strokeWidth = 3f
+                )
+
+                // Hologram trigger box
+                scope.drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.7f),
+                    topLeft = Offset(screenX, screenY),
+                    size = Size(objW, objH),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
+                )
+                scope.drawRoundRect(
+                    color = triggerColor,
+                    topLeft = Offset(screenX, screenY),
+                    size = Size(objW, objH),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
+                    style = Stroke(width = 2.5f)
+                )
+
+                // Inner core ring
+                scope.drawCircle(
+                    color = triggerColor,
+                    radius = objW * 0.28f,
+                    center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
+                )
+                scope.drawCircle(
+                    color = Color.White,
+                    radius = objW * 0.12f,
+                    center = Offset(screenX + objW * 0.5f, screenY + objH * 0.5f)
                 )
             }
 

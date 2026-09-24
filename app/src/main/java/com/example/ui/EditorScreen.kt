@@ -56,6 +56,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -398,6 +400,22 @@ fun EditorScreen(
                         Icon(Icons.Default.Remove, contentDescription = "Zoom Out", tint = Color.LightGray)
                     }
 
+                    // Zoom Label & Reset
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF21262D), RoundedCornerShape(6.dp))
+                            .clickable { editorState.zoomScale = 1.0f }
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${(editorState.zoomScale * 100).toInt()}%",
+                            color = Color(0xFF00E5FF),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     // Zoom In
                     IconButton(
                         onClick = { editorState.zoomIn() },
@@ -412,29 +430,52 @@ fun EditorScreen(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(12.dp)
-                        .background(Color(0xFF161B22).copy(alpha = 0.85f), RoundedCornerShape(8.dp))
+                        .background(Color(0xFF161B22).copy(alpha = 0.90f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("SNAP:", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    listOf(0.25f, 0.5f, 1.0f).forEach { snapVal ->
-                        val isSel = editorState.snapIncrement == snapVal
+                    if (!editorState.enableBlockBetweenGrids) {
                         Box(
                             modifier = Modifier
-                                .background(
-                                    if (isSel) Color(0xFF00E5FF) else Color(0xFF21262D),
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .clickable { editorState.snapIncrement = snapVal }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .background(Color(0xFF2A2000), RoundedCornerShape(4.dp))
+                                .border(BorderStroke(1.dp, Color(0xFFFFB300)), RoundedCornerShape(4.dp))
+                                .clickable {
+                                    Toast.makeText(
+                                        context,
+                                        "Izgaralar arasına blok koymak için Ayarlar'dan 'Enable block between grids' seçeneğini açın.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "${snapVal}x",
-                                color = if (isSel) Color.Black else Color.White,
+                                text = "1.0x (STRICT GRID)",
+                                color = Color(0xFFFFB300),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                    } else {
+                        listOf(0.25f, 0.5f, 1.0f).forEach { snapVal ->
+                            val isSel = editorState.snapIncrement == snapVal
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (isSel) Color(0xFF00E5FF) else Color(0xFF21262D),
+                                        RoundedCornerShape(4.dp)
+                                    )
+                                    .clickable { editorState.snapIncrement = snapVal }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${snapVal}x",
+                                    color = if (isSel) Color.Black else Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -495,6 +536,7 @@ fun EditorScreen(
                             ObjectCategory.PADS -> "🚀 Pads"
                             ObjectCategory.ORBS -> "🔮 Orbs"
                             ObjectCategory.PORTALS -> "🌀 Portals"
+                            ObjectCategory.TRIGGERS -> "⚡ Triggers"
                             ObjectCategory.SPECIAL -> "⭐ Special"
                         }
                         Tab(
@@ -734,6 +776,111 @@ fun EditorScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Enable block between grids Switch
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D1117)),
+                        border = BorderStroke(1.dp, if (editorState.enableBlockBetweenGrids) Color(0xFF00E5FF) else Color(0xFF30363D)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Enable block between grids",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (editorState.enableBlockBetweenGrids)
+                                        "Izgaralar arasına blok koyma AÇIK (0.5x, 0.25x sub-grid)"
+                                    else
+                                        "Izgaralar arasına blok koyma KAPALI (Sadece tam 1.0x ızgara)",
+                                    color = Color.LightGray,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Switch(
+                                checked = editorState.enableBlockBetweenGrids,
+                                onCheckedChange = { editorState.enableBlockBetweenGrids = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.Black,
+                                    checkedTrackColor = Color(0xFF00E5FF),
+                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedTrackColor = Color(0xFF21262D)
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Level Target Length (Uzun Leveller)
+                    Text("Level Length (Uzunluk / Süre):", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val lengthPresets = listOf(
+                        300f to "300m (~28s)",
+                        600f to "600m (~58s)",
+                        1200f to "1.2km (~2m)",
+                        2000f to "2.0km (~3m+)"
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        lengthPresets.forEach { (len, label) ->
+                            val isSel = (editorState.customLevelLength ?: 300f) == len
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isSel) Color(0xFF00E5FF) else Color(0xFF21262D),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .clickable { editorState.customLevelLength = len }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label.split(" ").first(),
+                                    color = if (isSel) Color.Black else Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Editor Zoom Slider
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Editor Zoom (Yakınlaştırma):", color = Color.LightGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("${(editorState.zoomScale * 100).toInt()}%", color = Color(0xFF00E5FF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Slider(
+                        value = editorState.zoomScale,
+                        onValueChange = { editorState.zoomScale = it },
+                        valueRange = 0.35f..2.2f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF00E5FF),
+                            activeTrackColor = Color(0xFF00E5FF)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
